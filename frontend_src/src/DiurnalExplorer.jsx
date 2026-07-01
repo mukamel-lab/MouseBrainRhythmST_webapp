@@ -222,7 +222,7 @@ function AboutPanel({ onNavigate }) {
     <section className="tab-panel active about-panel" aria-label="About this application">
       <div className="about-hero">
         <div className="about-hero-copy">
-          <p className="brand-kicker"><a href="https://www.biorxiv.org/content/10.64898/2026.01.26.701799v1.full" target="_blank" rel="noopener noreferrer">Gelber, Romero et al.</a> · <a href="https://www.biorxiv.org/content/10.64898/2026.01.26.701799v1.full" target="_blank" rel="noopener noreferrer">bioRxiv 2026</a></p>
+          <p className="brand-kicker"><a href="https://www.biorxiv.org/content/10.64898/2026.01.26.701799v1.full" target="_blank" rel="noopener noreferrer">Gelber, Romero et al. · bioRxiv 2026</a></p>
           <h2>Diurnal Brain Transcriptome Atlas</h2>
           <p className="about-lead">
             Comprehensive analysis of brain rhythm data from mouse spatial transcriptomics studies. Explore regional expression, rhythmicity, dorsal–ventral hippocampal differences, and matched Allen Brain Atlas in situ hybridization images.
@@ -243,7 +243,7 @@ function AboutPanel({ onNavigate }) {
       <div className="about-info-grid">
         <article className="about-card">
           <h3>Citation</h3>
-          <p><a href="https://www.biorxiv.org/content/10.64898/2026.01.26.701799v1.full" target="_blank" rel="noopener noreferrer">Gelber, Romero et al.</a>, <a href="https://www.biorxiv.org/content/10.64898/2026.01.26.701799v1.full" target="_blank" rel="noopener noreferrer">BioRxiv 2026</a></p>
+          <p><a href="https://www.biorxiv.org/content/10.64898/2026.01.26.701799v1.full" target="_blank" rel="noopener noreferrer">Gelber, Romero et al., BioRxiv 2026</a></p>
         </article>
         <article className="about-card">
           <h3>Contact</h3>
@@ -1079,9 +1079,9 @@ export default function DiurnalExplorer() {
     <div className="app-shell">
       <header className="app-header">
         <div>
-          <p className="brand-kicker">Desplats Lab × Mukamel Lab · UC San Diego</p>
+          <p className="brand-kicker">Desplats Lab × <a href="https://brainome.ucsd.edu" target="_blank">Mukamel Lab</a> · UC San Diego</p>
           <h1>Diurnal Brain Transcriptome Atlas</h1>
-          <p className="subtitle">Spatial transcriptomics of 24-hour brain transcription in healthy and APP23 mouse brain</p>
+          <p className="subtitle">Spatial transcriptomics of 24-hour brain transcription in a mouse model of Alzheimer's disease</p>
         </div>
         <div className={`status ${status === 'Error' ? 'status-error' : status === 'Rendering' || status === 'Connecting' ? 'status-loading' : 'status-ready'}`}>{status}</div>
       </header>
