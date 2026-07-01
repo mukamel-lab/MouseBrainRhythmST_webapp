@@ -206,7 +206,7 @@ function LoadingApp({ message }) {
     <div className="app-shell single-panel">
       <header className="app-header">
         <div>
-          <p className="brand-kicker">XXXXX Desplats Lab × Mukamel Lab · UC San Diego</p>
+          <p className="brand-kicker">Desplats Lab × Mukamel Lab · UC San Diego</p>
           <h1>Diurnal Brain Transcriptome Atlas</h1>
           <p className="subtitle">Spatial transcriptomics of 24-hour brain transcription in healthy and APP23 mouse brain</p>
         </div>
@@ -254,7 +254,7 @@ function AboutPanel({ onNavigate }) {
         <article className="about-card">
           <h3>Labs</h3>
           <p><a href="https://brainome.ucsd.edu" target="_blank" rel="noopener noreferrer">Mukamel lab</a> at UCSD</p>
-          <p>XXX Desplats lab at UCSD</p>
+          <p>Desplats lab at UCSD</p>
         </article>
         <article className="about-card">
           <h3>See also</h3>
