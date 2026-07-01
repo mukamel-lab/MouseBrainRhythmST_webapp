@@ -1083,7 +1083,20 @@ export default function DiurnalExplorer() {
           <h1>Diurnal Brain Transcriptome Atlas</h1>
           <p className="subtitle">Spatial transcriptomics of 24-hour brain transcription in a mouse model of Alzheimer's disease</p>
         </div>
-        <div className={`status ${status === 'Error' ? 'status-error' : status === 'Rendering' || status === 'Connecting' ? 'status-loading' : 'status-ready'}`}>{status}</div>
+        <div className="header-actions">
+          <a
+            className="header-github-link"
+            href="https://github.com/mukamel-lab/MouseBrainRhythmST"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="View repository on GitHub"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 .5a12 12 0 0 0-3.8 23.1c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.5-1.3-1.2-1.6-1.2-1.6-1-.7.1-.7.1-.7 1.1.1 1.7 1.1 1.7 1.1 1 .1 1.6-.8 1.6-.8.6-1.1 1.5-1.6 2.4-1.6 1.2-.2 1.8-.9 2.2-1.4-.9-.1-1.8-.4-1.8-1.7 0-1.2.8-2.2 1.7-2.3-.2-.5-.8-1.3-.2-2.7 0 0 1.4-.4 2.3 1.1a7.8 7.8 0 0 1 4.2 0c.9-1.5 2.3-1.1 2.3-1.1.7 1.4-.1 2.2-.2 2.3.9.1 1.7 1.1 1.7 2.3 0 1.3-.9 1.6-1.8 1.7.8.7.8 1.9.8 2.6v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5Z" />
+            </svg>
+          </a>
+          <div className={`status ${status === 'Error' ? 'status-error' : status === 'Rendering' || status === 'Connecting' ? 'status-loading' : 'status-ready'}`}>{status}</div>
+        </div>
       </header>
 
       <main className={activeTab === 'about' ? 'layout about-layout' : 'layout'}>
