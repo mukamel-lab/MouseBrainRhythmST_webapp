@@ -261,7 +261,7 @@ function AboutPanel({ onNavigate }) {
         {/* <article className="about-card">
           <h3>Labs</h3>
           <p><a href="https://brainome.ucsd.edu" target="_blank" rel="noopener noreferrer">Mukamel lab</a> at UCSD</p>
-          <p>Desplats lab at UCSD</p>
+          <p><a href="https://desplatslab.org/" target="_blank" rel="noopener noreferrer">Desplats lab</a> at UCSD</p>
         </article> */}
         <article className="about-card">
           <h3>See also</h3>
@@ -1080,9 +1080,9 @@ export default function DiurnalExplorer() {
     <div className="app-shell">
       <header className="app-header">
         <div>
-          <p className="brand-kicker">Desplats Lab × <a href="https://brainome.ucsd.edu" target="_blank">Mukamel Lab</a> · UC San Diego</p>
+          <p className="brand-kicker"><a href="https://desplatslab.org/">Desplats Lab</a> + <a href="https://brainome.ucsd.edu" target="_blank">Mukamel Lab</a> · UC San Diego</p>
           <h1>Diurnal Brain Transcriptome Atlas</h1>
-          <p className="subtitle">Spatial transcriptomics of 24-hour brain transcription in a mouse model of Alzheimer's disease</p>
+          <p className="subtitle">Spatial transcriptomics of diurnal gene expression in the mouse brain in the context of Alzheimer's disease</p>
         </div>
         <div className="header-actions">
           <a
