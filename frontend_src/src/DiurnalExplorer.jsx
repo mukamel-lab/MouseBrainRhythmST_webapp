@@ -208,7 +208,7 @@ function LoadingApp({ message }) {
         <div>
           <p className="brand-kicker">Desplats Lab × Mukamel Lab · UC San Diego</p>
           <h1>Diurnal Brain Transcriptome Atlas</h1>
-          <p className="subtitle">Spatial transcriptomics of 24-hour brain transcription in healthy and APP23 mouse brain</p>
+          <p className="subtitle">Spatial transcriptomics of diurnal gene expression dynamics in the mouse brain in the context of aging and Alzheimer's disease</p>
         </div>
         <div className="status status-loading">Loading</div>
       </header>
@@ -232,13 +232,20 @@ function AboutPanel({ onNavigate }) {
             <button type="button" onClick={() => onNavigate('rhythmicity')}>Search rhythmicity results</button>
             <button type="button" onClick={() => onNavigate('hippocampus')}>Dorsal/ventral hippocampus</button>
           </div>
-        </div>
-        <div className="about-hero-card" aria-label="Study highlights">
+         </div>
+        {/* <div className="about-hero-card" aria-label="Study highlights">
           <span className="about-pill">24-hour spatial transcriptomics</span>
           <span className="about-pill">NTG and APP23 mouse brain</span>
           <span className="about-pill">Regional rhythmicity and dysregulation</span>
-        </div>
+        </div> */}
       </div>
+
+      <article className="about-abstract">
+        <h3>Abstract</h3>
+        <p>
+          Diurnal rhythms in brain transcription align neural, immune, and metabolic processes with the light-dark cycle and are profoundly disrupted in Alzheimer's disease (AD). However, the regional organization of diurnal transcription in the healthy and diseased brain remains poorly defined. Using large-scale spatial transcriptomics, we mapped 24-hour rhythmic transcription across cortical and subcortical regions of the mouse brain. We identified marked regional differences in rhythmicity, including distinct oscillatory signatures across cortical areas and along the rostro-caudal axis. In the APP23 mouse model of AD, pathology-vulnerable brain regions exhibited early, region-specific disruption of diurnal transcription prior to substantial amyloid plaque deposition. These findings reveal a spatially organized architecture of brain diurnal rhythms and identify early rhythmic dysregulation as a feature of Alzheimer's disease pathogenesis.
+        </p>
+      </article>
 
       <div className="about-info-grid">
         <article className="about-card">
@@ -251,23 +258,17 @@ function AboutPanel({ onNavigate }) {
           <p>Eran Mukamel (<a href="mailto:emukamel@ucsd.edu">emukamel@ucsd.edu</a>)</p>
           <p>Paula Desplats (<a href="mailto:pdesplat@ucsd.edu">pdesplat@ucsd.edu</a>)</p>
         </article>
-        <article className="about-card">
+        {/* <article className="about-card">
           <h3>Labs</h3>
           <p><a href="https://brainome.ucsd.edu" target="_blank" rel="noopener noreferrer">Mukamel lab</a> at UCSD</p>
           <p>Desplats lab at UCSD</p>
-        </article>
+        </article> */}
         <article className="about-card">
           <h3>See also</h3>
           <p>(external): <a href="https://viewers.karospace.se/viewers/gse282203-combined-binary-sidecar.html" target="_blank" rel="noopener noreferrer">Karospace viewer for individual ST samples</a></p>
         </article>
       </div>
 
-      <article className="about-abstract">
-        <h3>Abstract</h3>
-        <p>
-          Diurnal rhythms in brain transcription align neural, immune, and metabolic processes with the light-dark cycle and are profoundly disrupted in Alzheimer's disease (AD). However, the regional organization of diurnal transcription in the healthy and diseased brain remains poorly defined. Using large-scale spatial transcriptomics, we mapped 24-hour rhythmic transcription across cortical and subcortical regions of the mouse brain. We identified marked regional differences in rhythmicity, including distinct oscillatory signatures across cortical areas and along the rostro-caudal axis. In the APP23 mouse model of AD, pathology-vulnerable brain regions exhibited early, region-specific disruption of diurnal transcription prior to substantial amyloid plaque deposition. These findings reveal a spatially organized architecture of brain diurnal rhythms and identify early rhythmic dysregulation as a feature of Alzheimer's disease pathogenesis.
-        </p>
-      </article>
     </section>
   );
 }
@@ -1190,7 +1191,7 @@ export default function DiurnalExplorer() {
                 onLoad={() => { setPlotError(''); setStatus('Ready'); }}
                 onError={() => { setPlotError('The backend did not return a displayable SVG.'); setStatus('Error'); }}
               />
-              <p className="methods-note">Small dots represent individual animals. Large dots and error bars show the mean ± 1 SD per timepoint and group. The solid line is the fitted sinusoidal model, double-plotted. Yellow/grey shading indicates light and dark phases, respectively.</p>
+              <p className="methods-note">Small dots represent individual samples. Large dots and error bars show the mean ± 1 SD per timepoint and group. The solid line is the fitted sinusoidal model, double-plotted. Yellow/grey shading indicates light and dark phases, respectively.</p>
               <CompactRhythmicityUnderPlot gene={plotParams.gene} payload={plotBasicRhythmPayload} error={plotBasicRhythmError} labelCluster={labelCluster} />
               <a className="download-button" href={plotDownloadUrl} download={`circadian_${cleanFilename(plotParams.gene)}.svg`}>Download SVG</a>
             </section>

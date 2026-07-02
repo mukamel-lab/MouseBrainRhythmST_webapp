@@ -22,7 +22,7 @@ def build_diurnal(path: Path):
     con = sqlite3.connect(path)
     kv_tables(con, {
         "default_gene": "Dbp", "default_cluster": "L23", "default_genotype": "NTG",
-        "x_axis_label": "Zeitgeber Time (double plotted)",
+        "x_axis_label": "Zeitgeber Time (h) (double plotted)",
         "y_axis_label": "log2 Normalized mRNA Expression",
         "spatial_legend_label": "log2(normalized counts)",
         "allen_atlas_id": "2", "allen_atlas_plate_ordinal": "7",

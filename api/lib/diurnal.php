@@ -115,7 +115,7 @@ function diurnal_base_metadata(): array
             'gene_search_limit' => 500,
         ),
         'plot' => array(
-            'x_axis_label' => isset($settings['x_axis_label']) ? $settings['x_axis_label'] : 'Zeitgeber Time (double plotted)',
+            'x_axis_label' => isset($settings['x_axis_label']) ? $settings['x_axis_label'] : 'Zeitgeber time (h) (double plotted)',
             'y_axis_label' => isset($settings['y_axis_label']) ? $settings['y_axis_label'] : 'log2 Normalized mRNA Expression',
             'spatial_legend_label' => isset($settings['spatial_legend_label']) ? $settings['spatial_legend_label'] : 'log2(normalized counts)',
         ),
@@ -484,7 +484,7 @@ function diurnal_plot_svg(string $gene, array $filters, string $colorBy, array $
     }
 
     $plotBottom = $top + $rowsCount * $panelHeight + max(0, $rowsCount - 1) * $panelGapY;
-    $svg[] = '<text x="' . ($width / 2) . '" y="' . ($plotBottom + 24) . '" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">Zeitgeber Time (double plotted)</text>';
+    $svg[] = '<text x="' . ($width / 2) . '" y="' . ($plotBottom + 24) . '" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">Zeitgeber time (h) (double plotted)</text>';
     $svg[] = '<text x="18" y="' . ($top + ($plotBottom - $top) / 2) . '" transform="rotate(-90 18 ' . ($top + ($plotBottom - $top) / 2) . ')" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">log2 Normalized mRNA Expression</text>';
 
     $legendY = $plotBottom + 48;
