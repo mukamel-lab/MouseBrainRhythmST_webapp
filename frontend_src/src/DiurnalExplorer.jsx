@@ -1178,10 +1178,6 @@ export default function DiurnalExplorer() {
             </>
           ) : null}
 
-          <div className="action-row">
-            <button type="button" className="primary-button" onClick={() => setRefreshToken((value) => value + 1)}>Refresh current plot</button>
-            <button type="button" onClick={() => applyDefaults(metadata)}>Reset</button>
-          </div>
         </aside>
         ) : null}
 
