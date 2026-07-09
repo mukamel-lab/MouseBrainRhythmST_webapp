@@ -233,6 +233,10 @@ function LoadingApp({ message }) {
           <h1>Spatio-Temporal Atlas of the Diurnal Mouse Brain Transcriptome</h1>
           <p className="subtitle">Spatial transcriptomics of 24-hour brain transcription in healthy and APP23 mouse brain</p>
         </div>
+        <div className="header-actions">
+          <a className="header-link-button" href={PREPRINT_URL} target="_blank" rel="noreferrer">Publication</a>
+          <a className="header-link-button" href={RAW_DATA_BROWSER_URL} target="_blank" rel="noreferrer">Data</a>
+        </div>
         <div className="status status-loading">Loading</div>
       </header>
       <main className="content loading-card">{message}</main>
@@ -250,12 +254,12 @@ function AboutPanel({ onNavigate }) {
           <p className="about-lead">
             Comprehensive analysis of brain rhythm data using spatio-temporal transcriptomics (STT).
           </p>
-          <div className="about-actions">
+          {/* <div className="about-actions">
             <button type="button" className="primary-button" onClick={() => onNavigate('diurnal')}>Diurnal expression</button>
             <button type="button" onClick={() => onNavigate('rhythmicity')}>Rhythmicity statistics</button>
             <button type="button" onClick={() => onNavigate('rostral_caudal')}>Rostral vs. caudal cortex</button>
             <button type="button" onClick={() => onNavigate('hippocampus')}>Dorsal vs. ventral hippocampus</button>
-          </div>
+          </div> */}
         </div>
       </div>
 
@@ -1459,7 +1463,11 @@ export default function DiurnalExplorer() {
         <div>
           <p className="brand-kicker"><a href="https://desplatslab.org/" target="_blank" rel="noreferrer">Desplats Lab</a> × <a href="https://brainome.ucsd.edu/" target="_blank" rel="noreferrer">Mukamel Lab</a> · UC San Diego</p>
           <h1>Spatio-Temporal Atlas of the Diurnal Mouse Brain Transcriptome</h1>
-          <p className="subtitle">Spatial transcriptomics of 24-hour brain transcription in healthy and APP23 mouse brain</p>
+          <p className="subtitle">Spatial transcriptomics of 24-hour brain transcription in healthy and APP23 mouse brain.</p>
+        </div>
+        <div className="header-actions">
+          <a className="header-link-button" href={PREPRINT_URL} target="_blank" rel="noreferrer">Publication</a>
+          <a className="header-link-button" href={RAW_DATA_BROWSER_URL} target="_blank" rel="noreferrer">Data</a>
         </div>
       </header>
 
