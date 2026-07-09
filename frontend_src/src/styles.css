@@ -31,6 +31,7 @@ h1 { margin: 0; font-size: 1.65rem; font-weight: 650; }
 .status-error { background: #ffe8e8; }
 
 .layout { display: grid; grid-template-columns: minmax(260px, 330px) minmax(0, 1fr); gap: 1rem; padding: 1rem 1.5rem 1.5rem; }
+.layout.full-width-layout { grid-template-columns: minmax(0, 1fr); }
 .controls, .content { background: var(--panel); border: 1px solid var(--border); border-radius: .75rem; box-shadow: 0 1px 2px rgba(15, 23, 42, .04); }
 .controls { padding: 1rem; align-self: start; position: sticky; top: 1rem; max-height: calc(100vh - 2rem); overflow: auto; }
 .content { min-width: 0; padding: 1rem; }

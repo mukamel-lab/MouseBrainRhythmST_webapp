@@ -217,7 +217,7 @@ function Tabs({ active, onActive }) {
       <button type="button" className={`tab ${active === 'about' ? 'active' : ''}`} onClick={() => onActive('about')}>About</button>
       <button type="button" className={`tab ${active === 'diurnal' ? 'active' : ''}`} onClick={() => onActive('diurnal')}>Diurnal Expression</button>
       <button type="button" className={`tab ${active === 'spatial' ? 'active' : ''}`} onClick={() => onActive('spatial')}>Spatial mean</button>
-      <button type="button" className={`tab ${active === 'rhythmicity' ? 'active' : ''}`} onClick={() => onActive('rhythmicity')}>Rhythmicity results</button>
+      <button type="button" className={`tab ${active === 'rhythmicity' ? 'active' : ''}`} onClick={() => onActive('rhythmicity')}>Rhythmicity statistics</button>
       <button type="button" className={`tab ${active === 'rostral_caudal' ? 'active' : ''}`} onClick={() => onActive('rostral_caudal')}>Rostral vs. caudal cortex</button>
       <button type="button" className={`tab ${active === 'hippocampus' ? 'active' : ''}`} onClick={() => onActive('hippocampus')}>Dorsal vs. ventral hippocampus</button>
     </nav>
@@ -1450,6 +1450,8 @@ export default function DiurnalExplorer() {
   if (!metadata) return <LoadingApp message="Loading application metadata…" />;
 
   const geneSelectValue = geneOptions.includes(geneInput) ? geneInput : '';
+  const hideSidebar = ['rhythmicity', 'rostral_caudal', 'hippocampus'].includes(activeTab);
+  const mainClassName = activeTab === 'about' ? 'layout about-layout' : hideSidebar ? 'layout full-width-layout' : 'layout';
 
   return (
     <div className="app-shell">
@@ -1459,11 +1461,10 @@ export default function DiurnalExplorer() {
           <h1>Spatio-Temporal Atlas of the Diurnal Mouse Brain Transcriptome</h1>
           <p className="subtitle">Spatial transcriptomics of 24-hour brain transcription in healthy and APP23 mouse brain</p>
         </div>
-        <div className={`status ${status === 'Error' ? 'status-error' : status === 'Rendering' || status === 'Connecting' ? 'status-loading' : 'status-ready'}`}>{status}</div>
       </header>
 
-      <main className={activeTab === 'about' ? 'layout about-layout' : 'layout'}>
-        {activeTab !== 'about' ? (
+      <main className={mainClassName}>
+        {activeTab !== 'about' && !hideSidebar ? (
         <aside className="controls" aria-label="Plot controls">
           {activeTab === 'diurnal' || activeTab === 'spatial' ? (
             <>
