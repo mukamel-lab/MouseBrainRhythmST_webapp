@@ -115,7 +115,7 @@ function diurnal_base_metadata(): array
             'gene_search_limit' => 500,
         ),
         'plot' => array(
-            'x_axis_label' => isset($settings['x_axis_label']) ? $settings['x_axis_label'] : 'Zeitgeber time (h) (double plotted)',
+            'x_axis_label' => isset($settings['x_axis_label']) ? $settings['x_axis_label'] : 'Zeitgeber Time (double plotted)',
             'y_axis_label' => isset($settings['y_axis_label']) ? $settings['y_axis_label'] : 'log2 Normalized mRNA Expression',
             'spatial_legend_label' => isset($settings['spatial_legend_label']) ? $settings['spatial_legend_label'] : 'log2(normalized counts)',
         ),
@@ -286,7 +286,7 @@ function diurnal_group_key(array $row, string $colorBy, array $splitBy): array
     );
 }
 
-function diurnal_plot_svg(string $gene, array $filters, string $colorBy, array $splitBy, int $width = 980): string
+function diurnal_plot_svg(string $gene, array $filters, string $colorBy, array $splitBy, int $width = 860): string
 {
     $pdo = open_database('diurnal');
     $resolved = require_diurnal_gene($pdo, $gene);
@@ -388,30 +388,35 @@ function diurnal_plot_svg(string $gene, array $filters, string $colorBy, array $
     $facetCount = count($facetKeys);
     $columns = $facetCount <= 2 ? $facetCount : min(3, (int) ceil(sqrt($facetCount)));
     $rowsCount = (int) ceil($facetCount / max(1, $columns));
-    $outerLeft = 74;
-    $outerRight = 28;
-    $top = 56;
+    // Layout tuned to resemble the original ggplot2 output: a large plotting
+    // panel, normal-sized text, and a compact legend below the axis. The
+    // previous PHP SVG used the same overall dimensions but left too much
+    // whitespace around a small panel, which made the plot look undersized.
+    $outerLeft = 16;
+    $outerRight = 16;
+    $top = 52;
     $panelGapX = 18;
-    $panelGapY = 28;
+    $panelGapY = 30;
     $panelWidth = (int) floor(($width - $outerLeft - $outerRight - ($columns - 1) * $panelGapX) / max(1, $columns));
-    $panelHeight = 318;
-    $legendHeight = max(70, (int) ceil(count($colors) / 5) * 24 + 42);
-    $height = $top + $rowsCount * $panelHeight + max(0, $rowsCount - 1) * $panelGapY + $legendHeight + 56;
+    $panelHeight = $facetCount === 1 ? 430 : 350;
+    $legendHeight = max(78, (int) ceil(count($colors) / 4) * 28 + 50);
+    $height = $top + $rowsCount * $panelHeight + max(0, $rowsCount - 1) * $panelGapY + $legendHeight + 48;
 
     $svg = array();
     $svg[] = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' . $width . ' ' . $height . '" role="img" aria-label="Diurnal expression plot for ' . xml_escape($resolved['gene']) . '">';
     $svg[] = '<rect width="100%" height="100%" fill="white"/>';
-    $svg[] = '<text x="' . ($width / 2) . '" y="28" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" font-style="italic" fill="#111827">' . xml_escape($resolved['gene']) . '</text>';
+    $svg[] = '<text x="' . ($width / 2) . '" y="28" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" font-style="italic" fill="#111827">' . xml_escape($resolved['gene']) . '</text>';
     $svg[] = '<defs>';
     foreach ($facetKeys as $index => $facetKey) {
         $col = $index % $columns;
         $rowIndex = intdiv($index, $columns);
         $panelX = $outerLeft + $col * ($panelWidth + $panelGapX);
         $panelY = $top + $rowIndex * ($panelHeight + $panelGapY);
-        $plotX = $panelX + 48;
-        $plotY = $panelY + 32;
-        $plotW = $panelWidth - 62;
-        $plotH = $panelHeight - 78;
+        $hasFacetLabel = $facets[$facetKey] !== '';
+        $plotX = $panelX + 58;
+        $plotY = $panelY + ($hasFacetLabel ? 34 : 10);
+        $plotW = $panelWidth - 70;
+        $plotH = $panelHeight - ($hasFacetLabel ? 92 : 66);
         $svg[] = '<clipPath id="clip' . $index . '"><rect x="' . $plotX . '" y="' . $plotY . '" width="' . $plotW . '" height="' . $plotH . '"/></clipPath>';
     }
     $svg[] = '</defs>';
@@ -421,16 +426,17 @@ function diurnal_plot_svg(string $gene, array $filters, string $colorBy, array $
         $rowIndex = intdiv($index, $columns);
         $panelX = $outerLeft + $col * ($panelWidth + $panelGapX);
         $panelY = $top + $rowIndex * ($panelHeight + $panelGapY);
-        $plotX = $panelX + 48;
-        $plotY = $panelY + 32;
-        $plotW = $panelWidth - 62;
-        $plotH = $panelHeight - 78;
+        $hasFacetLabel = $facets[$facetKey] !== '';
+        $plotX = $panelX + 58;
+        $plotY = $panelY + ($hasFacetLabel ? 34 : 10);
+        $plotW = $panelWidth - 70;
+        $plotH = $panelHeight - ($hasFacetLabel ? 92 : 66);
         $xScale = function (float $x) use ($plotX, $plotW): float { return $plotX + ($x / 42.0) * $plotW; };
         $yScale = function (float $y) use ($plotY, $plotH, $yMin, $yMax): float { return $plotY + $plotH - (($y - $yMin) / ($yMax - $yMin)) * $plotH; };
 
         if ($facets[$facetKey] !== '') {
             $svg[] = '<rect x="' . $panelX . '" y="' . $panelY . '" width="' . $panelWidth . '" height="24" fill="#f8fafc" stroke="#cbd5e1"/>';
-            $svg[] = '<text x="' . ($panelX + $panelWidth / 2) . '" y="' . ($panelY + 16) . '" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#334155">' . xml_escape($facets[$facetKey]) . '</text>';
+            $svg[] = '<text x="' . ($panelX + $panelWidth / 2) . '" y="' . ($panelY + 16) . '" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#334155">' . xml_escape($facets[$facetKey]) . '</text>';
         }
 
         $backgrounds = array(array(0, 12, '#F6F18F'), array(12, 24, '#606161'), array(24, 36, '#F6F18F'), array(36, 42, '#606161'));
@@ -438,11 +444,16 @@ function diurnal_plot_svg(string $gene, array $filters, string $colorBy, array $
             $svg[] = '<rect x="' . round($xScale($bg[0]), 2) . '" y="' . $plotY . '" width="' . round($xScale($bg[1]) - $xScale($bg[0]), 2) . '" height="' . $plotH . '" fill="' . $bg[2] . '" fill-opacity="0.10"/>';
         }
 
+        foreach (array(0, 12, 24, 36) as $xGrid) {
+            $x = $xScale((float) $xGrid);
+            $svg[] = '<line x1="' . round($x, 2) . '" y1="' . $plotY . '" x2="' . round($x, 2) . '" y2="' . ($plotY + $plotH) . '" stroke="#e5e7eb" stroke-width="1"/>';
+        }
+
         foreach ($ticks as $tick) {
             $y = $yScale((float) $tick);
             $svg[] = '<line x1="' . $plotX . '" y1="' . round($y, 2) . '" x2="' . ($plotX + $plotW) . '" y2="' . round($y, 2) . '" stroke="#e5e7eb" stroke-width="1"/>';
             if ($col === 0) {
-                $svg[] = '<text x="' . ($plotX - 7) . '" y="' . round($y + 4, 2) . '" text-anchor="end" font-family="Arial, sans-serif" font-size="10" fill="#475569">' . xml_escape(svg_numeric_label((float) $tick)) . '</text>';
+                $svg[] = '<text x="' . ($plotX - 7) . '" y="' . round($y + 4, 2) . '" text-anchor="end" font-family="Arial, sans-serif" font-size="13" fill="#475569">' . xml_escape(svg_numeric_label((float) $tick)) . '</text>';
             }
         }
 
@@ -453,12 +464,12 @@ function diurnal_plot_svg(string $gene, array $filters, string $colorBy, array $
             foreach ($lineRows as $lineRow) {
                 $poly[] = array($xScale((float) $lineRow['x']), $yScale((float) $lineRow['y']));
             }
-            $svg[] = svg_polyline($poly, $colors[$colorKey]['color'] ?? '#2563eb', 1.5, 1.0);
+            $svg[] = svg_polyline($poly, $colors[$colorKey]['color'] ?? '#2563eb', 2.1, 1.0);
         }
 
         foreach ($pointGroups[$facetKey] ?? array() as $point) {
             $jitter = (deterministic_unit_interval($point['sample_key']) - 0.5) * 0.7;
-            $svg[] = '<circle cx="' . round($xScale($point['x'] + $jitter), 2) . '" cy="' . round($yScale($point['y']), 2) . '" r="1.8" fill="' . xml_escape($colors[$point['color_key']]['color'] ?? '#2563eb') . '" fill-opacity="0.35"/>';
+            $svg[] = '<circle cx="' . round($xScale($point['x'] + $jitter), 2) . '" cy="' . round($yScale($point['y']), 2) . '" r="2.1" fill="' . xml_escape($colors[$point['color_key']]['color'] ?? '#2563eb') . '" fill-opacity="0.28"/>';
         }
 
         foreach ($summariesByFacet[$facetKey] ?? array() as $item) {
@@ -467,10 +478,10 @@ function diurnal_plot_svg(string $gene, array $filters, string $colorBy, array $
             $lowY = $yScale((float) ($item['mean'] - $item['sd']));
             $highY = $yScale((float) ($item['mean'] + $item['sd']));
             $color = $colors[$item['color_key']]['color'] ?? '#2563eb';
-            $svg[] = '<line x1="' . round($x, 2) . '" y1="' . round($lowY, 2) . '" x2="' . round($x, 2) . '" y2="' . round($highY, 2) . '" stroke="' . xml_escape($color) . '" stroke-width="1.2"/>';
-            $svg[] = '<line x1="' . round($x - 3, 2) . '" y1="' . round($lowY, 2) . '" x2="' . round($x + 3, 2) . '" y2="' . round($lowY, 2) . '" stroke="' . xml_escape($color) . '" stroke-width="1.2"/>';
-            $svg[] = '<line x1="' . round($x - 3, 2) . '" y1="' . round($highY, 2) . '" x2="' . round($x + 3, 2) . '" y2="' . round($highY, 2) . '" stroke="' . xml_escape($color) . '" stroke-width="1.2"/>';
-            $svg[] = '<circle cx="' . round($x, 2) . '" cy="' . round($meanY, 2) . '" r="3.5" fill="' . xml_escape($color) . '" stroke="white" stroke-width="0.7"/>';
+            $svg[] = '<line x1="' . round($x, 2) . '" y1="' . round($lowY, 2) . '" x2="' . round($x, 2) . '" y2="' . round($highY, 2) . '" stroke="' . xml_escape($color) . '" stroke-width="1.4"/>';
+            $svg[] = '<line x1="' . round($x - 3, 2) . '" y1="' . round($lowY, 2) . '" x2="' . round($x + 3, 2) . '" y2="' . round($lowY, 2) . '" stroke="' . xml_escape($color) . '" stroke-width="1.4"/>';
+            $svg[] = '<line x1="' . round($x - 3, 2) . '" y1="' . round($highY, 2) . '" x2="' . round($x + 3, 2) . '" y2="' . round($highY, 2) . '" stroke="' . xml_escape($color) . '" stroke-width="1.4"/>';
+            $svg[] = '<circle cx="' . round($x, 2) . '" cy="' . round($meanY, 2) . '" r="4.5" fill="' . xml_escape($color) . '" stroke="white" stroke-width="0.8"/>';
         }
         $svg[] = '</g>';
 
@@ -479,26 +490,26 @@ function diurnal_plot_svg(string $gene, array $filters, string $colorBy, array $
         foreach ($xTicks as $tick) {
             $x = $xScale((float) $tick[0]);
             $svg[] = '<line x1="' . round($x, 2) . '" y1="' . ($plotY + $plotH) . '" x2="' . round($x, 2) . '" y2="' . ($plotY + $plotH + 4) . '" stroke="#475569"/>';
-            $svg[] = '<text x="' . round($x, 2) . '" y="' . ($plotY + $plotH + 17) . '" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#475569">' . $tick[1] . '</text>';
+            $svg[] = '<text x="' . round($x, 2) . '" y="' . ($plotY + $plotH + 17) . '" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#475569">' . $tick[1] . '</text>';
         }
     }
 
     $plotBottom = $top + $rowsCount * $panelHeight + max(0, $rowsCount - 1) * $panelGapY;
-    $svg[] = '<text x="' . ($width / 2) . '" y="' . ($plotBottom + 24) . '" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">Zeitgeber time (h) (double plotted)</text>';
-    $svg[] = '<text x="18" y="' . ($top + ($plotBottom - $top) / 2) . '" transform="rotate(-90 18 ' . ($top + ($plotBottom - $top) / 2) . ')" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">log2 Normalized mRNA Expression</text>';
+    $svg[] = '<text x="' . ($width / 2) . '" y="' . ($plotBottom + 24) . '" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#111827">Zeitgeber Time (double plotted)</text>';
+    $svg[] = '<text x="18" y="' . ($top + ($plotBottom - $top) / 2) . '" transform="rotate(-90 18 ' . ($top + ($plotBottom - $top) / 2) . ')" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#111827">log2 Normalized mRNA Expression</text>';
 
-    $legendY = $plotBottom + 48;
-    $svg[] = '<text x="' . $outerLeft . '" y="' . ($legendY + 5) . '" font-family="Arial, sans-serif" font-size="11" font-weight="700" fill="#334155">' . xml_escape(diurnal_variable_label($colorBy)) . '</text>';
-    $legendX = $outerLeft + 80;
+    $legendY = $plotBottom + 52;
+    $svg[] = '<text x="' . $outerLeft . '" y="' . ($legendY + 5) . '" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#334155">' . xml_escape(diurnal_variable_label($colorBy)) . '</text>';
+    $legendX = $outerLeft + 120;
     $legendRow = 0;
     $legendColumn = 0;
     foreach ($colors as $entry) {
-        $x = $legendX + $legendColumn * 170;
-        $y = $legendY + $legendRow * 22;
+        $x = $legendX + $legendColumn * 185;
+        $y = $legendY + $legendRow * 26;
         $svg[] = '<line x1="' . $x . '" y1="' . $y . '" x2="' . ($x + 18) . '" y2="' . $y . '" stroke="' . xml_escape($entry['color']) . '" stroke-width="3"/>';
-        $svg[] = '<text x="' . ($x + 24) . '" y="' . ($y + 4) . '" font-family="Arial, sans-serif" font-size="10" fill="#334155">' . xml_escape($entry['label']) . '</text>';
+        $svg[] = '<text x="' . ($x + 24) . '" y="' . ($y + 4) . '" font-family="Arial, sans-serif" font-size="13" fill="#334155">' . xml_escape($entry['label']) . '</text>';
         $legendColumn++;
-        if ($legendColumn >= 5) {
+        if ($legendColumn >= 4) {
             $legendColumn = 0;
             $legendRow++;
         }

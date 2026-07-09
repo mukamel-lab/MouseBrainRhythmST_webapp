@@ -50,6 +50,7 @@ function app_config(): array
         'cache_dir' => app_root() . DIRECTORY_SEPARATOR . 'cache',
         'allen_timeout_seconds' => 20,
         'allen_cache_seconds' => 7 * 24 * 60 * 60,
+        'allen_image_cache_seconds' => 30 * 24 * 60 * 60,
         'max_json_rows' => 5000,
         'plot_cache_seconds' => 300,
     );
@@ -110,6 +111,7 @@ function database_filename(string $domain): string
         'diurnal' => 'diurnal.sqlite',
         'dv' => 'dorsal_ventral.sqlite',
         'supplemental' => 'supplemental.sqlite',
+        'rostral_caudal' => 'rostral_caudal.sqlite',
     );
     if (!isset($files[$domain])) {
         throw new ApiException('Unknown database domain.', 500, $domain);
