@@ -282,6 +282,101 @@ function allen_image_download_url(int $imageId, string $view, int $downsample, i
     return allen_url('/image_download/' . $imageId, $params);
 }
 
+
+function external_http_get_binary(string $url, int $timeout): string
+{
+    if (extension_loaded('curl')) {
+        $handle = curl_init($url);
+        curl_setopt_array($handle, array(
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS => 4,
+            CURLOPT_CONNECTTIMEOUT => min(10, $timeout),
+            CURLOPT_TIMEOUT => $timeout,
+            CURLOPT_USERAGENT => 'DiurnalBrainTranscriptomeAtlas/3.0 (+https://brainome.ucsd.edu)',
+            CURLOPT_HTTPHEADER => array('Accept: image/jpeg,image/*,*/*'),
+        ));
+        $body = curl_exec($handle);
+        $status = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
+        $contentType = (string) curl_getinfo($handle, CURLINFO_CONTENT_TYPE);
+        $error = curl_error($handle);
+        curl_close($handle);
+        if ($body === false || $status < 200 || $status >= 300) {
+            throw new ApiException('Allen Brain Atlas image request failed.', 502, $error !== '' ? $error : 'HTTP ' . $status);
+        }
+        if ($contentType !== '' && stripos($contentType, 'image/') === false && stripos($contentType, 'application/octet-stream') === false) {
+            throw new ApiException('Allen Brain Atlas image service returned a non-image response.', 502, $contentType);
+        }
+        return (string) $body;
+    }
+
+    if (filter_var(ini_get('allow_url_fopen'), FILTER_VALIDATE_BOOLEAN)) {
+        $context = stream_context_create(array('http' => array(
+            'method' => 'GET',
+            'timeout' => $timeout,
+            'ignore_errors' => true,
+            'header' => "Accept: image/jpeg,image/*,*/*\r\nUser-Agent: DiurnalBrainTranscriptomeAtlas/3.0\r\n",
+        )));
+        $body = @file_get_contents($url, false, $context);
+        if ($body === false) {
+            throw new ApiException('Allen Brain Atlas image request failed.', 502, 'PHP could not retrieve ' . $url);
+        }
+        $status = 200;
+        if (isset($http_response_header[0]) && preg_match('/\s(\d{3})\s/', $http_response_header[0], $match)) {
+            $status = (int) $match[1];
+        }
+        if ($status < 200 || $status >= 300) {
+            throw new ApiException('Allen Brain Atlas image request failed.', 502, 'HTTP ' . $status);
+        }
+        return (string) $body;
+    }
+
+    throw new ApiException('PHP cannot make outbound HTTPS image requests to the Allen Brain Atlas.', 500, 'Enable cURL or allow_url_fopen.');
+}
+
+function allen_image_cache_file(int $imageId, string $view, int $downsample, int $quality): string
+{
+    $config = app_config();
+    $cacheDir = (string) $config['cache_dir'] . DIRECTORY_SEPARATOR . 'allen-images';
+    if (!is_dir($cacheDir)) @mkdir($cacheDir, 0770, true);
+    return $cacheDir . DIRECTORY_SEPARATOR . $imageId . '-' . preg_replace('/[^A-Za-z0-9_-]+/', '_', $view) . '-ds' . $downsample . '-q' . $quality . '.jpg';
+}
+
+function allen_cached_image_body(int $imageId, string $view, int $downsample, int $quality): string
+{
+    $config = app_config();
+    $view = allen_view($view);
+    $downsample = max(1, min(8, $downsample));
+    $quality = max(1, min(100, $quality));
+    $cacheFile = allen_image_cache_file($imageId, $view, $downsample, $quality);
+    $ttl = isset($config['allen_image_cache_seconds']) ? (int) $config['allen_image_cache_seconds'] : (int) $config['allen_cache_seconds'];
+    if (is_file($cacheFile) && filesize($cacheFile) > 0 && (time() - filemtime($cacheFile)) < $ttl) {
+        return (string) file_get_contents($cacheFile);
+    }
+
+    try {
+        $body = external_http_get_binary(allen_image_download_url($imageId, $view, $downsample, $quality), (int) $config['allen_timeout_seconds']);
+        if (strlen($body) > 0 && is_dir(dirname($cacheFile)) && is_writable(dirname($cacheFile))) {
+            @file_put_contents($cacheFile . '.tmp', $body, LOCK_EX);
+            @rename($cacheFile . '.tmp', $cacheFile);
+        }
+        return $body;
+    } catch (Throwable $error) {
+        if (is_file($cacheFile) && filesize($cacheFile) > 0) {
+            return (string) file_get_contents($cacheFile);
+        }
+        throw $error;
+    }
+}
+
+function allen_local_image_url(int $imageId, string $view, int $downsample, int $quality): string
+{
+    return 'api/index.php?route=allen/ish/image&section_image_id=' . rawurlencode((string) $imageId)
+        . '&view=' . rawurlencode($view)
+        . '&downsample=' . rawurlencode((string) $downsample)
+        . '&quality=' . rawurlencode((string) $quality);
+}
+
 function allen_ish_payload(string $input, string $view, int $downsample, int $quality = 90): array
 {
     $config = allen_cut_config();
@@ -325,9 +420,9 @@ function allen_ish_payload(string $input, string $view, int $downsample, int $qu
             'section_data_set_id' => $dataSetId,
             'section_image_id' => $imageId,
             'section_number' => $sectionNumber,
-            // Direct display avoids requiring PHP to proxy large JPEG files.
-            'image_url' => $imageUrl,
+            'image_url' => allen_local_image_url($imageId, $view, $downsample, $quality),
             'allen_image_url' => $imageUrl,
+            'image_cache' => 'server',
             'viewer_url' => $viewerUrl,
         );
     } catch (Throwable $exception) {
