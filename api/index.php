@@ -11,6 +11,7 @@ require_once __DIR__ . '/lib/svg.php';
 require_once __DIR__ . '/lib/diurnal.php';
 require_once __DIR__ . '/lib/supplemental.php';
 require_once __DIR__ . '/lib/dv.php';
+require_once __DIR__ . '/lib/rostral_caudal.php';
 require_once __DIR__ . '/lib/allen.php';
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
@@ -28,11 +29,12 @@ try {
     if ($route === '' || $route === 'health') {
         $checks = array();
         $ok = true;
-        foreach (array('diurnal', 'dv', 'supplemental') as $domain) {
+        foreach (array('diurnal', 'dv', 'supplemental', 'rostral_caudal') as $domain) {
             try {
                 $pdo = open_database($domain);
                 $quick = (string) db_scalar($pdo, 'PRAGMA quick_check');
                 $checks[$domain] = array('ok' => strtolower($quick) === 'ok', 'file' => basename(database_filename($domain)));
+                if ($domain === 'rostral_caudal') $checks[$domain]['available'] = rc_available($pdo);
                 if (!$checks[$domain]['ok']) $ok = false;
             } catch (Throwable $error) {
                 $checks[$domain] = array('ok' => false, 'message' => $error->getMessage());
@@ -55,6 +57,7 @@ try {
         $metadata = diurnal_base_metadata();
         $metadata['rhythmicity'] = supplemental_metadata();
         $metadata['hippocampus_dv'] = dv_metadata();
+        $metadata['rostral_caudal'] = rc_metadata();
         json_response($metadata);
     }
 
@@ -78,7 +81,7 @@ try {
         $gene = request_string('gene', isset($settings['default_gene']) ? (string) $settings['default_gene'] : 'Dbp');
         $colorBy = request_string('color_by', 'region');
         $splitBy = request_csv('split_by', array());
-        $svg = diurnal_plot_svg($gene, $filters, $colorBy, $splitBy, request_int('width', 980, 600, 1800));
+        $svg = diurnal_plot_svg($gene, $filters, $colorBy, $splitBy, request_int('width', 520, 420, 1800));
         $headers = array('Cache-Control' => 'public, max-age=' . (int) app_config()['plot_cache_seconds']);
         if (request_string('download', '') !== '') {
             $headers['Content-Disposition'] = 'attachment; filename="circadian_' . preg_replace('/[^A-Za-z0-9._-]+/', '_', $gene) . '.svg"';
@@ -169,6 +172,37 @@ try {
         text_response($svg, 'image/svg+xml; charset=utf-8', 200, $headers);
     }
 
+
+    if ($route === 'rostral-caudal/metadata') {
+        json_response(rc_metadata());
+    }
+
+    if ($route === 'rostral-caudal/genes') {
+        $query = request_string('q', '');
+        $limit = request_int('limit', 80, 1, 500);
+        $genes = rc_gene_search($query, $limit);
+        if (request_string('format', 'object') === 'array') json_response($genes);
+        json_response(array('query' => $query, 'count' => count($genes), 'genes' => $genes));
+    }
+
+    if ($route === 'rostral-caudal/genes/resolve') {
+        json_response(rc_gene_resolve(request_string('q', request_string('gene', '')), request_int('limit', 25, 1, 100)));
+    }
+
+    if ($route === 'rostral-caudal') {
+        json_response(rc_payload(request_string('gene', 'Dbp'), request_string('cluster', 'L23')));
+    }
+
+    if ($route === 'rostral-caudal/plot.svg') {
+        $gene = request_string('gene', 'Dbp');
+        $svg = rc_plot_svg($gene, request_string('cluster', 'L23'), request_int('width', 860, 600, 1800));
+        $headers = array('Cache-Control' => 'public, max-age=' . (int) app_config()['plot_cache_seconds']);
+        if (request_string('download', '') !== '') {
+            $headers['Content-Disposition'] = 'attachment; filename="rostral_caudal_' . preg_replace('/[^A-Za-z0-9._-]+/', '_', $gene) . '.svg"';
+        }
+        text_response($svg, 'image/svg+xml; charset=utf-8', 200, $headers);
+    }
+
     if ($route === 'allen/ish') {
         json_response(allen_ish_payload(
             request_string('gene', 'Dbp'),
@@ -181,7 +215,17 @@ try {
     if ($route === 'allen/ish/image') {
         $imageId = request_int('section_image_id', 0, 0, PHP_INT_MAX);
         if ($imageId <= 0) throw new ApiException('Missing or invalid Allen section_image_id.', 400);
-        redirect_response(allen_image_download_url($imageId, allen_view(request_string('view', 'ish')), request_int('downsample', 4, 1, 8), request_int('quality', 90, 1, 100)));
+        $view = allen_view(request_string('view', 'ish'));
+        $downsample = request_int('downsample', 4, 1, 8);
+        $quality = request_int('quality', 90, 1, 100);
+        try {
+            text_response(allen_cached_image_body($imageId, $view, $downsample, $quality), 'image/jpeg', 200, array('Cache-Control' => 'public, max-age=604800'));
+        } catch (Throwable $imageError) {
+            // If PHP cannot fetch/cache the image, let the browser load the Allen image
+            // directly rather than showing an empty panel.
+            header('Location: ' . allen_image_download_url($imageId, $view, $downsample, $quality), true, 302);
+            exit;
+        }
     }
 
     throw new ApiException('API route not found.', 404, $route);
