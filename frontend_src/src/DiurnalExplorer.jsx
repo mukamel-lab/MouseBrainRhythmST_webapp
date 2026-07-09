@@ -248,20 +248,15 @@ function AboutPanel({ onNavigate }) {
           <p className="brand-kicker">Gelber, Romero et al. · bioRxiv 2026</p>
           <h2>Diurnal Brain Transcriptome Atlas</h2>
           <p className="about-lead">
-            Comprehensive analysis of brain rhythm data from mouse spatial transcriptomics studies. Explore regional expression, rhythmicity, dorsal–ventral hippocampal differences, and matched Allen Brain Atlas in situ hybridization images.
+            Comprehensive analysis of brain rhythm data using spatio-temporal transcriptomics (STT).
           </p>
           <div className="about-actions">
-            <button type="button" className="primary-button" onClick={() => onNavigate('diurnal')}>Explore expression</button>
-            <button type="button" onClick={() => onNavigate('rhythmicity')}>Search rhythmicity results</button>
-            <button type="button" onClick={() => onNavigate('hippocampus')}>Dorsal/ventral hippocampus</button>
-            <button type="button" onClick={() => onNavigate('rostral_caudal')}>Rostral-caudal rhythmicity</button>
+            <button type="button" className="primary-button" onClick={() => onNavigate('diurnal')}>Diurnal expression</button>
+            <button type="button" onClick={() => onNavigate('rhythmicity')}>Rhythmicity statistics</button>
+            <button type="button" onClick={() => onNavigate('rostral_caudal')}>Rostral vs. caudal cortex</button>
+            <button type="button" onClick={() => onNavigate('hippocampus')}>Dorsal vs. ventral hippocampus</button>
           </div>
         </div>
-        {/* <div className="about-hero-card" aria-label="Study highlights">
-          <span className="about-pill">24-hour spatial transcriptomics</span>
-          <span className="about-pill">NTG and APP23 mouse brain</span>
-          <span className="about-pill">Regional rhythmicity and dysregulation</span>
-        </div> */}
       </div>
 
       <div className="about-info-grid">
@@ -290,11 +285,13 @@ function AboutPanel({ onNavigate }) {
       </article>
 
       <article className="about-card raw-data-card">
-        <h3>External raw data browser</h3>
+        <h3>Data download and external resources</h3>
         <p>
-          View the section-level spatial transcriptomics data in an external KaroSpace browser, including raw section views, annotations, and gene-expression exploration for the study dataset.
+          Download the raw spatial transcriptomics data and metadata for the study dataset, including the 24-hour NTG and APP23 mouse brain samples, from <a href="https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE282203" target="_blank" rel="noreferrer">GEO accession GSE282203</a>.
         </p>
-        <a className="download-button" href={RAW_DATA_BROWSER_URL} target="_blank" rel="noreferrer">Open raw data browser</a>
+        <p>
+          Visualize ST datasets in the  <a href={RAW_DATA_BROWSER_URL} target="_blank" rel="noreferrer">KaroSpace browser</a> (external resource), including raw section views, annotations, and gene-expression exploration for the study dataset.
+        </p>
       </article>
     </section>
   );
