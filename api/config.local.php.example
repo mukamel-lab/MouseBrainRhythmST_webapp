@@ -1,0 +1,11 @@
+<?php
+// Copy this file to config.local.php only when you need to override defaults.
+return array(
+    // Absolute path to the directory containing all three *.sqlite files.
+    // 'db_dir' => '/home/YOUR_USER/mysqlpool/emukamel/MouseBrainRhythmST3-private',
+
+    // Optional writable cache for Allen API metadata.
+    // 'cache_dir' => '/home/YOUR_USER/mysqlpool/emukamel/MouseBrainRhythmST3-cache',
+
+    'debug' => false,
+);
