@@ -22,7 +22,7 @@ def build_diurnal(path: Path):
     con = sqlite3.connect(path)
     kv_tables(con, {
         "default_gene": "Dbp", "default_cluster": "L23", "default_genotype": "NTG",
-        "x_axis_label": "Zeitgeber Time (h) (double plotted)",
+        "x_axis_label": "Zeitgeber Time (double plotted)",
         "y_axis_label": "log2 Normalized mRNA Expression",
         "spatial_legend_label": "log2(normalized counts)",
         "allen_atlas_id": "2", "allen_atlas_plate_ordinal": "7",
@@ -80,6 +80,95 @@ def build_diurnal(path: Path):
         con.execute("INSERT INTO spatial_means VALUES (?,?,?,?,?,?)",(gene_id,cluster_id,gt_id,age_id,5+gene_id+cluster_id*.2+gt_id*.3+age_id*.1,12))
     con.execute("CREATE TABLE gene_stats (gene_id INTEGER PRIMARY KEY, observation_count INTEGER NOT NULL) WITHOUT ROWID")
     con.executemany("INSERT INTO gene_stats VALUES (?,?)",[(1,len(samples)),(2,len(samples)),(3,len(samples))])
+
+    # Rostral/intermediate/caudal cortical rhythmicity fixture tables in diurnal.sqlite.
+    con.execute("INSERT OR REPLACE INTO settings(key,value) VALUES ('rostral_caudal_default_gene','Dbp')")
+    con.execute("INSERT OR REPLACE INTO settings(key,value) VALUES ('rostral_caudal_default_cluster','L23')")
+    con.execute("CREATE TABLE rc_genes (gene_id INTEGER PRIMARY KEY, symbol TEXT NOT NULL UNIQUE COLLATE NOCASE, symbol_upper TEXT NOT NULL, gene_prefix TEXT, sort_order INTEGER)")
+    con.executemany("INSERT INTO rc_genes VALUES (?,?,?,?,?)",[(1,'Dbp','DBP','DB',1),(2,'Hspa5','HSPA5','HS',2),(3,'Lct','LCT','LC',3)])
+    con.execute("CREATE TABLE rc_clusters (cluster_id INTEGER PRIMARY KEY, code TEXT NOT NULL UNIQUE COLLATE NOCASE, label TEXT NOT NULL, sort_order INTEGER)")
+    con.executemany("INSERT INTO rc_clusters VALUES (?,?,?,?)",[(1,'L23','Cortex Layer 2/3',1),(2,'L4','Cortex Layer 4',2)])
+    con.execute("CREATE TABLE rc_regions (region_id INTEGER PRIMARY KEY, code TEXT NOT NULL UNIQUE, label TEXT NOT NULL, sort_order INTEGER, color TEXT)")
+    con.executemany("INSERT INTO rc_regions VALUES (?,?,?,?,?)",[(1,'R','Rostral',1,'#1f77b4'),(2,'M','Intermediate',2,'#ff7f0e'),(3,'C','Caudal',3,'#2ca02c')])
+    con.execute("CREATE TABLE rc_samples (sample_id INTEGER PRIMARY KEY, sample_key TEXT NOT NULL UNIQUE, cluster_id INTEGER NOT NULL, region_id INTEGER NOT NULL, sample TEXT, age TEXT, sex TEXT, time_label TEXT, zt REAL)")
+    con.execute("CREATE TABLE rc_expression (gene_id INTEGER NOT NULL, sample_id INTEGER NOT NULL, value REAL NOT NULL, PRIMARY KEY(gene_id, sample_id))")
+    con.execute("CREATE TABLE rc_model_coefficients (gene_id INTEGER NOT NULL, cluster_id INTEGER NOT NULL, region_id INTEGER NOT NULL, n_samples INTEGER, intercept REAL, age_y_vs_o REAL, sex_m_vs_f REAL, t_c REAL, t_s REAL, PRIMARY KEY(gene_id, cluster_id, region_id))")
+    rc_samples=[]; rc_expr=[]; sid2=1
+    for cluster_id in (1,2):
+      for region_id, region_code in ((1,'R'),(2,'M'),(3,'C')):
+       for sex in ('F','M'):
+        for age in ('O','Y'):
+         for zt in times:
+          key=f"rc{sid2:04d}"
+          rc_samples.append((sid2,key,cluster_id,region_id,key,age,sex,f"ZT{zt}",float(zt)))
+          for gene_id in (1,2,3):
+           base=5.8+gene_id*.5+cluster_id*.15+region_id*.18+(age=='Y')*.2+(sex=='M')*.08
+           val=base + (.7 if gene_id==1 else .4)*math.sin(2*math.pi*zt/24+region_id*.25)
+           rc_expr.append((gene_id,sid2,val))
+          sid2+=1
+    con.executemany("INSERT INTO rc_samples VALUES (?,?,?,?,?,?,?,?,?)",rc_samples)
+    con.executemany("INSERT INTO rc_expression VALUES (?,?,?)",rc_expr)
+    rc_coef=[]
+    for gene_id in (1,2,3):
+      for cluster_id in (1,2):
+       for region_id in (1,2,3):
+        intercept=5.8+gene_id*.5+cluster_id*.15+region_id*.18
+        amp=.7 if gene_id==1 else .4
+        phase=region_id*.25
+        rc_coef.append((gene_id,cluster_id,region_id,24,intercept,.2,.08,amp*math.cos(phase),amp*math.sin(phase)))
+    con.executemany("INSERT INTO rc_model_coefficients VALUES (?,?,?,?,?,?,?,?,?)",rc_coef)
+    con.execute("CREATE INDEX idx_rc_genes_upper ON rc_genes(symbol_upper)")
+    con.execute("CREATE INDEX idx_rc_expression_gene_sample ON rc_expression(gene_id, sample_id)")
+    con.execute("CREATE INDEX idx_rc_samples_cluster_region_time ON rc_samples(cluster_id, region_id, zt, sample_id)")
+    con.execute("CREATE INDEX idx_rc_coef_gene_cluster ON rc_model_coefficients(gene_id, cluster_id, region_id)")
+    con.commit(); con.close()
+
+
+def build_rc(path: Path):
+    path.unlink(missing_ok=True)
+    con = sqlite3.connect(path)
+    kv_tables(con, {
+        "rostral_caudal_default_gene": "Dbp",
+        "rostral_caudal_default_cluster": "L23",
+    }, {"schema_name": "fixture_rostral_caudal", "schema_version": "1"})
+    con.execute("CREATE TABLE rc_genes (gene_id INTEGER PRIMARY KEY, symbol TEXT NOT NULL UNIQUE COLLATE NOCASE, symbol_upper TEXT NOT NULL, gene_prefix TEXT, sort_order INTEGER)")
+    con.executemany("INSERT INTO rc_genes VALUES (?,?,?,?,?)",[(1,'Dbp','DBP','DB',1),(2,'Hspa5','HSPA5','HS',2),(3,'Lct','LCT','LC',3)])
+    con.execute("CREATE TABLE rc_clusters (cluster_id INTEGER PRIMARY KEY, code TEXT NOT NULL UNIQUE COLLATE NOCASE, label TEXT NOT NULL, sort_order INTEGER)")
+    con.executemany("INSERT INTO rc_clusters VALUES (?,?,?,?)",[(1,'L23','Cortex Layer 2/3',1),(2,'L4','Cortex Layer 4',2)])
+    con.execute("CREATE TABLE rc_regions (region_id INTEGER PRIMARY KEY, code TEXT NOT NULL UNIQUE, label TEXT NOT NULL, sort_order INTEGER, color TEXT)")
+    con.executemany("INSERT INTO rc_regions VALUES (?,?,?,?,?)",[(1,'R','Rostral',1,'#1f77b4'),(2,'M','Intermediate',2,'#ff7f0e'),(3,'C','Caudal',3,'#2ca02c')])
+    con.execute("CREATE TABLE rc_samples (sample_id INTEGER PRIMARY KEY, sample_key TEXT NOT NULL UNIQUE, cluster_id INTEGER NOT NULL, region_id INTEGER NOT NULL, sample TEXT, age TEXT, sex TEXT, time_label TEXT, zt REAL)")
+    con.execute("CREATE TABLE rc_expression (gene_id INTEGER NOT NULL, sample_id INTEGER NOT NULL, value REAL NOT NULL, PRIMARY KEY(gene_id, sample_id))")
+    con.execute("CREATE TABLE rc_model_coefficients (gene_id INTEGER NOT NULL, cluster_id INTEGER NOT NULL, region_id INTEGER NOT NULL, n_samples INTEGER, intercept REAL, age_y_vs_o REAL, sex_m_vs_f REAL, t_c REAL, t_s REAL, PRIMARY KEY(gene_id, cluster_id, region_id))")
+    times = [0,4,8,12,16,20]
+    rc_samples=[]; rc_expr=[]; sid2=1
+    for cluster_id in (1,2):
+      for region_id, region_code in ((1,'R'),(2,'M'),(3,'C')):
+       for sex in ('F','M'):
+        for age in ('O','Y'):
+         for zt in times:
+          key=f"rc{sid2:04d}"
+          rc_samples.append((sid2,key,cluster_id,region_id,key,age,sex,f"ZT{zt}",float(zt)))
+          for gene_id in (1,2,3):
+           base=5.8+gene_id*.5+cluster_id*.15+region_id*.18+(age=='Y')*.2+(sex=='M')*.08
+           val=base + (.7 if gene_id==1 else .4)*math.sin(2*math.pi*zt/24+region_id*.25)
+           rc_expr.append((gene_id,sid2,val))
+          sid2+=1
+    con.executemany("INSERT INTO rc_samples VALUES (?,?,?,?,?,?,?,?,?)",rc_samples)
+    con.executemany("INSERT INTO rc_expression VALUES (?,?,?)",rc_expr)
+    rc_coef=[]
+    for gene_id in (1,2,3):
+      for cluster_id in (1,2):
+       for region_id in (1,2,3):
+        intercept=5.8+gene_id*.5+cluster_id*.15+region_id*.18
+        amp=.7 if gene_id==1 else .4
+        phase=region_id*.25
+        rc_coef.append((gene_id,cluster_id,region_id,24,intercept,.2,.08,amp*math.cos(phase),amp*math.sin(phase)))
+    con.executemany("INSERT INTO rc_model_coefficients VALUES (?,?,?,?,?,?,?,?,?)",rc_coef)
+    con.execute("CREATE INDEX idx_rc_genes_upper ON rc_genes(symbol_upper)")
+    con.execute("CREATE INDEX idx_rc_expression_gene_sample ON rc_expression(gene_id, sample_id)")
+    con.execute("CREATE INDEX idx_rc_samples_cluster_region_time ON rc_samples(cluster_id, region_id, zt, sample_id)")
+    con.execute("CREATE INDEX idx_rc_coef_gene_cluster ON rc_model_coefficients(gene_id, cluster_id, region_id)")
     con.commit(); con.close()
 
 
@@ -142,6 +231,7 @@ def build_supp(path: Path):
     con.commit(); con.close()
 
 build_diurnal(OUT/'diurnal.sqlite')
+build_rc(OUT/'rostral_caudal.sqlite')
 build_dv(OUT/'dorsal_ventral.sqlite')
 build_supp(OUT/'supplemental.sqlite')
 print(OUT)

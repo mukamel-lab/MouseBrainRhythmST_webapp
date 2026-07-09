@@ -65,6 +65,9 @@ metadata = get_json('/api/index.php?route=metadata')
 assert metadata['defaults']['gene'] == 'Dbp'
 assert metadata['hippocampus_dv']['default_gene'] == 'Lct'
 assert metadata['hippocampus_dv']['split_by_default'] == 'none'
+assert metadata['rostral_caudal']['available'] is True
+assert metadata['rostral_caudal']['default_gene'] == 'Dbp'
+assert metadata['rostral_caudal']['default_cluster'] == 'L23'
 
 genes = get_json('/api/index.php?route=genes&q=Db')
 assert 'Dbp' in genes['genes']
@@ -85,6 +88,20 @@ assert dv['split_by_label'] == 'Combined'
 
 spatial = get_json('/api/index.php?route=spatial&gene=Dbp')
 assert spatial['panels'] and 'log2(normalized counts)' in spatial['legend']
+
+
+rc_genes = get_json('/api/index.php?route=rostral-caudal/genes&q=Db')
+assert 'Dbp' in rc_genes['genes']
+
+rc = get_json('/api/index.php?route=rostral-caudal&gene=Dbp&cluster=L23')
+assert rc['found'] and rc['cluster'] == 'L23'
+
+status, ctype, body = get('/api/index.php?route=rostral-caudal/plot.svg&gene=Dbp&cluster=L23')
+assert status == 200 and ctype == 'image/svg+xml', (status, ctype)
+text = body.decode('utf-8')
+assert 'Rostral' in text and 'Intermediate' in text and 'Caudal' in text
+assert 'Medial' not in text
+(tmp / 'rostral_caudal.svg').write_bytes(body)
 
 for path, outfile, phrase in [
     ('/api/index.php?route=plot.svg&gene=Dbp&include_region=L23', 'diurnal.svg', 'Zeitgeber Time (double plotted)'),
