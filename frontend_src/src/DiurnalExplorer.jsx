@@ -230,7 +230,7 @@ function LoadingApp({ message }) {
       <header className="app-header">
         <div>
           <p className="brand-kicker"><a href="https://desplatslab.org/" target="_blank" rel="noreferrer">Desplats Lab</a> × <a href="https://brainome.ucsd.edu/" target="_blank" rel="noreferrer">Mukamel Lab</a> · UC San Diego</p>
-          <h1>Diurnal Brain Transcriptome Atlas</h1>
+          <h1>Spatio-Temporal Atlas of the Diurnal Mouse Brain Transcriptome</h1>
           <p className="subtitle">Spatial transcriptomics of 24-hour brain transcription in healthy and APP23 mouse brain</p>
         </div>
         <div className="status status-loading">Loading</div>
@@ -246,7 +246,7 @@ function AboutPanel({ onNavigate }) {
       <div className="about-hero">
         <div className="about-hero-copy">
           <p className="brand-kicker">Gelber, Romero et al. · bioRxiv 2026</p>
-          <h2>Diurnal Brain Transcriptome Atlas</h2>
+          <h2>Spatio-Temporal Atlas of the Diurnal Mouse Brain Transcriptome</h2>
           <p className="about-lead">
             Comprehensive analysis of brain rhythm data using spatio-temporal transcriptomics (STT).
           </p>
@@ -1456,7 +1456,7 @@ export default function DiurnalExplorer() {
       <header className="app-header">
         <div>
           <p className="brand-kicker"><a href="https://desplatslab.org/" target="_blank" rel="noreferrer">Desplats Lab</a> × <a href="https://brainome.ucsd.edu/" target="_blank" rel="noreferrer">Mukamel Lab</a> · UC San Diego</p>
-          <h1>Diurnal Brain Transcriptome Atlas</h1>
+          <h1>Spatio-Temporal Atlas of the Diurnal Mouse Brain Transcriptome</h1>
           <p className="subtitle">Spatial transcriptomics of 24-hour brain transcription in healthy and APP23 mouse brain</p>
         </div>
         <div className={`status ${status === 'Error' ? 'status-error' : status === 'Rendering' || status === 'Connecting' ? 'status-loading' : 'status-ready'}`}>{status}</div>
@@ -1465,75 +1465,82 @@ export default function DiurnalExplorer() {
       <main className={activeTab === 'about' ? 'layout about-layout' : 'layout'}>
         {activeTab !== 'about' ? (
         <aside className="controls" aria-label="Plot controls">
-          <label className="control-label" htmlFor="geneInput">Gene</label>
-          <input
-            id="geneInput"
-            className="text-input"
-            list="geneOptions"
-            value={geneInput}
-            onChange={(event) => setGeneInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                commitGene(event.currentTarget.value);
-              }
-            }}
-            onBlur={() => {
-              const hit = exactOption(geneOptions, geneInput);
-              if (hit && hit !== gene) commitGene(hit);
-            }}
-            placeholder="Type gene name…"
-            autoComplete="off"
-            spellCheck="false"
-          />
-          <datalist id="geneOptions">
-            {geneOptions.map((option) => <option key={option} value={option} />)}
-          </datalist>
-          <select
-            className="gene-select"
-            size={Math.min(Math.max(geneOptions.length + 1, 3), 7)}
-            value={geneSelectValue}
-            onChange={(event) => {
-              const selected = event.target.value;
-              if (selected) {
-                setGeneInput(selected);
-                commitGene(selected);
-              }
-            }}
-            aria-label="Gene suggestions"
-          >
-            <option value="" disabled>{geneOptions.length ? 'Select a suggested gene' : 'No suggestions'}</option>
-            {geneOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-          </select>
-          <div className="gene-button-row">
-            <button type="button" className="primary-button" disabled={geneBusy} onClick={() => commitGene()}>{geneBusy ? 'Checking…' : 'Apply gene'}</button>
-          </div>
-          <p className="help-text">
-            {metadata.gene_count?.toLocaleString?.() || metadata.gene_count} genes available. Current plot gene: <strong>{gene}</strong>.
-          </p>
-          {geneMessage ? <p className={`gene-message ${geneMessage.startsWith('Current') ? 'gene-message-ok' : ''}`}>{geneMessage}</p> : null}
+          {activeTab === 'diurnal' || activeTab === 'spatial' ? (
+            <>
+              <label className="control-label" htmlFor="geneInput">Gene</label>
+              <input
+                id="geneInput"
+                className="text-input"
+                list="geneOptions"
+                value={geneInput}
+                onChange={(event) => setGeneInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    commitGene(event.currentTarget.value);
+                  }
+                }}
+                onBlur={() => {
+                  const hit = exactOption(geneOptions, geneInput);
+                  if (hit && hit !== gene) commitGene(hit);
+                }}
+                placeholder="Type gene name…"
+                autoComplete="off"
+                spellCheck="false"
+              />
+              <datalist id="geneOptions">
+                {geneOptions.map((option) => <option key={option} value={option} />)}
+              </datalist>
+              <select
+                className="gene-select"
+                size={Math.min(Math.max(geneOptions.length + 1, 3), 7)}
+                value={geneSelectValue}
+                onChange={(event) => {
+                  const selected = event.target.value;
+                  if (selected) {
+                    setGeneInput(selected);
+                    commitGene(selected);
+                  }
+                }}
+                aria-label="Gene suggestions"
+              >
+                <option value="" disabled>{geneOptions.length ? 'Select a suggested gene' : 'No suggestions'}</option>
+                {geneOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+              </select>
+              <div className="gene-button-row">
+                <button type="button" className="primary-button" disabled={geneBusy} onClick={() => commitGene()}>{geneBusy ? 'Checking…' : 'Apply gene'}</button>
+              </div>
+              <p className="help-text">
+                {metadata.gene_count?.toLocaleString?.() || metadata.gene_count} genes available. Current plot gene: <strong>{gene}</strong>.
+              </p>
+              {geneMessage ? <p className={`gene-message ${geneMessage.startsWith('Current') ? 'gene-message-ok' : ''}`}>{geneMessage}</p> : null}
+            </>
+          ) : null}
 
-          <MultiSelect label="Include Regions" options={choices.region} value={includeRegion} onChange={setIncludeRegion} size={8} optionLabel={labelCluster} />
-          <MultiSelect label="Include Ages" options={choices.age} value={includeAge} onChange={setIncludeAge} size={3} />
-          <MultiSelect label="Include Sexes" options={choices.sex} value={includeSex} onChange={setIncludeSex} size={3} />
-          <MultiSelect label="Include Genotypes" options={choices.genotype} value={includeGenotype} onChange={setIncludeGenotype} size={3} />
+          {activeTab === 'diurnal' ? (
+            <>
+              <MultiSelect label="Include Regions" options={choices.region} value={includeRegion} onChange={setIncludeRegion} size={8} optionLabel={labelCluster} />
+              <MultiSelect label="Include Ages" options={choices.age} value={includeAge} onChange={setIncludeAge} size={3} />
+              <MultiSelect label="Include Sexes" options={choices.sex} value={includeSex} onChange={setIncludeSex} size={3} />
+              <MultiSelect label="Include Genotypes" options={choices.genotype} value={includeGenotype} onChange={setIncludeGenotype} size={3} />
 
-          <hr />
+              <hr />
 
-          <label className="control-label" htmlFor="colorBy">Color by</label>
-          <select id="colorBy" value={colorBy} onChange={(event) => setColorBy(event.target.value)}>
-            {choices.color_by.map((option) => <option key={option} value={option}>{labelVariable(option)}</option>)}
-          </select>
+              <label className="control-label" htmlFor="colorBy">Color by</label>
+              <select id="colorBy" value={colorBy} onChange={(event) => setColorBy(event.target.value)}>
+                {choices.color_by.map((option) => <option key={option} value={option}>{labelVariable(option)}</option>)}
+              </select>
 
-          <CheckboxGroup label="Split by" options={choices.split_by} value={splitBy} onChange={setSplitBy} optionLabel={labelVariable} />
+              <CheckboxGroup label="Split by" options={choices.split_by} value={splitBy} onChange={setSplitBy} optionLabel={labelVariable} />
+            </>
+          ) : null}
 
-          <label className="control-label" htmlFor="gamma">Spatial scale contrast <span className="gamma-value">{Number(gamma).toFixed(1)}</span></label>
-          <input id="gamma" type="range" min="0.5" max="3" step="0.1" value={gamma} onChange={(event) => setGamma(Number(event.target.value))} />
-
-          <div className="action-row">
-            <button type="button" className="primary-button" onClick={() => setRefreshToken((value) => value + 1)}>Refresh current plot</button>
-            <button type="button" onClick={() => applyDefaults(metadata)}>Reset</button>
-          </div>
+          {activeTab === 'spatial' ? (
+            <>
+              <label className="control-label" htmlFor="gamma">Spatial scale contrast <span className="gamma-value">{Number(gamma).toFixed(1)}</span></label>
+              <input id="gamma" type="range" min="0.5" max="3" step="0.1" value={gamma} onChange={(event) => setGamma(Number(event.target.value))} />
+            </>
+          ) : null}
         </aside>
         ) : null}
 
