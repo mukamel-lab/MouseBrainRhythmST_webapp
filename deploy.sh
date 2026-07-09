@@ -3,10 +3,7 @@
 # Run npm and deploy
 
 cd frontend_src
-npm ci \
-  --prefer-offline --verbose
-#   --omit=optional \
-#   --ignore-scripts
+npm ci --prefer-offline
 npm run lint
 npm run build
 cp ../dist/index.html ..

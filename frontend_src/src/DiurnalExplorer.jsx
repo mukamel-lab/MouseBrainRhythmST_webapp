@@ -146,6 +146,20 @@ function variableLabel(metadata, value) {
   return String(metadata?.labels?.variables?.[text] || DEFAULT_VARIABLE_LABELS[text] || text);
 }
 
+function optionLabel(metadata, variable, value) {
+  const text = String(value ?? '');
+  const normalized = text.trim().toUpperCase();
+  if (variable === 'genotype') {
+    if (normalized === 'NTG') return 'Non-transgenic (NTG)';
+    if (normalized === 'APP23') return 'APP23-transgenic';
+  }
+  if (variable === 'sex') {
+    if (normalized === 'M') return 'Male';
+    if (normalized === 'F') return 'Female';
+  }
+  return String(metadata?.labels?.[variable]?.[text] || text);
+}
+
 function ampPhaseText(row) {
   const primary = [];
   const amplitude = row.amplitude_display || row.amplitude;
@@ -1532,7 +1546,7 @@ export default function DiurnalExplorer() {
               <MultiSelect label="Include Regions" options={choices.region} value={includeRegion} onChange={setIncludeRegion} size={8} optionLabel={labelCluster} />
               <MultiSelect label="Include Ages" options={choices.age} value={includeAge} onChange={setIncludeAge} size={3} />
               <MultiSelect label="Include Sexes" options={choices.sex} value={includeSex} onChange={setIncludeSex} size={3} />
-              <MultiSelect label="Include Genotypes" options={choices.genotype} value={includeGenotype} onChange={setIncludeGenotype} size={3} />
+              <MultiSelect label="Include Genotypes" options={choices.genotype} value={includeGenotype} onChange={setIncludeGenotype} size={3} optionLabel={(option) => optionLabel(metadata, 'genotype', option)} />
 
               <hr />
 

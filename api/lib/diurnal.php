@@ -242,8 +242,7 @@ function diurnal_variable_label(string $variable): string
 
 function diurnal_row_label(array $row, string $variable): string
 {
-    $labelKey = $variable . '_label';
-    return isset($row[$labelKey]) && trim((string) $row[$labelKey]) !== '' ? (string) $row[$labelKey] : (string) ($row[$variable] ?? '');
+    return trim((string) ($row[$variable] ?? ''));
 }
 
 function diurnal_row_color(array $row, string $variable): string
@@ -253,8 +252,13 @@ function diurnal_row_color(array $row, string $variable): string
     if (preg_match('/^#[0-9A-Fa-f]{6}$/', $color)) {
         return $color;
     }
+    $value = trim((string) ($row[$variable] ?? $variable));
+    $normalized = strtoupper($value);
+    if ($variable === 'age' && ($normalized === '7' || $normalized === '7M' || $normalized === '7MO' || $normalized === '7MONTH' || $normalized === '7MONTHS' || $normalized === '7MONTHSOLD' || $normalized === '7MTH')) {
+        return '#B68A00';
+    }
     $fallbacks = array('#2563eb', '#dc2626', '#16a34a', '#9333ea', '#ea580c', '#0891b2', '#4f46e5', '#be123c');
-    $index = (int) floor(deterministic_unit_interval((string) ($row[$variable] ?? $variable)) * count($fallbacks));
+    $index = (int) floor(deterministic_unit_interval((string) $value) * count($fallbacks));
     return $fallbacks[min(count($fallbacks) - 1, $index)];
 }
 
@@ -432,7 +436,7 @@ function diurnal_plot_svg(string $gene, array $filters, string $colorBy, array $
         $plotY = $panelY + ($hasFacetLabel ? 34 : 10);
         $plotW = $panelWidth - 70;
         $plotH = $panelHeight - ($hasFacetLabel ? 92 : 66);
-        $xScale = function (float $x) use ($plotX, $plotW): float { return $plotX + ($x / 42.0) * $plotW; };
+        $xScale = function (float $x) use ($plotX, $plotW): float { return $plotX + (($x + 3.0) / 48.0) * $plotW; };
         $yScale = function (float $y) use ($plotY, $plotH, $yMin, $yMax): float { return $plotY + $plotH - (($y - $yMin) / ($yMax - $yMin)) * $plotH; };
 
         if ($facets[$facetKey] !== '') {

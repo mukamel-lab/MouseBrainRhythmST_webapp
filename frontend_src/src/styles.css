@@ -62,7 +62,7 @@ h1 { margin: 0; font-size: 1.65rem; font-weight: 650; }
 .tab-panel { display: block; }
 .loading { padding: 1rem; border: 1px dashed var(--border); border-radius: .5rem; color: var(--muted); background: #fafbfc; }
 .error-banner { margin: 0 0 1rem; padding: .85rem 1rem; border: 1px solid var(--error); border-radius: .5rem; background: #fff1f1; color: #781b22; white-space: pre-wrap; }
-.plot-img { display: block; width: min(100%, 760px); max-width: 760px; min-height: 500px; height: auto; margin: 0 auto; border: 1px solid var(--border); border-radius: .5rem; background: #fff; object-fit: contain; }
+.plot-img { display: block; width: 100%; max-width: 100%; min-height: 500px; height: auto; margin: 0 auto; border: 1px solid var(--border); border-radius: .5rem; background: #fff; object-fit: contain; }
 .methods-note { font-size: .83rem; color: #555; margin: .8rem 0 1rem; line-height: 1.5; }
 .download-button { display: inline-block; padding: .55rem .8rem; border-radius: .4rem; text-decoration: none; }
 
