@@ -1,5 +1,0 @@
-Options -Indexes
-
-<FilesMatch "^(db-path\.txt|config\.local\.php|config\.local\.php\.example)$">
-    Require all denied
-</FilesMatch>
