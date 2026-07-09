@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { apiUrl, asArray, fetchAllenIsh, fetchGenes, fetchHippocampusDv, fetchHippocampusDvGenes, fetchJson, fetchRhythmicity, fetchRhythmicityBasic, resolveGene } from './api';
+import { apiUrl, asArray, fetchAllenIsh, fetchGenes, fetchHippocampusDv, fetchHippocampusDvGenes, fetchJson, fetchRhythmicity, fetchRostralCaudal, fetchRostralCaudalGenes, fetchRhythmicityBasic, resolveGene } from './api';
 
 const DEFAULT_GENE = 'Dbp';
 const DEFAULT_HIPPOCAMPUS_DV_GENE = 'Lct';
 const DEFAULT_HIPPOCAMPUS_DV_CLUSTER = 'dg_sg';
 const DEFAULT_COLOR_BY = 'region';
+const DEFAULT_ROSTRAL_CAUDAL_GENE = 'Dbp';
+const DEFAULT_ROSTRAL_CAUDAL_CLUSTER = 'L23';
+const PREPRINT_URL = 'https://www.biorxiv.org/content/10.64898/2026.01.26.701799v1.full';
+const RAW_DATA_BROWSER_URL = 'https://viewers.karospace.se/viewers/gse282203-combined-binary-sidecar.html';
 const DEFAULT_RHYTHMICITY_THRESHOLD = 0.1;
 const PANEL_KEYS = ['map_ntg_7', 'map_ntg_14', 'map_app_7', 'map_app_14'];
 
@@ -76,6 +80,23 @@ function formatCount(value) {
 function displayValue(value, fallback = '—') {
   const text = String(value ?? '').trim();
   return text || fallback;
+}
+
+function sourceTableLabel(value) {
+  const text = String(value ?? '').trim();
+  const match = text.match(/^S(\d+)$/i);
+  return match ? `Sup Table ${match[1]}` : text;
+}
+
+function sortValue(row, key, labelCluster) {
+  if (key === 'source') return `${sourceTableLabel(row.table_id)} ${row.table_name || ''}`;
+  if (key === 'result') return row.result_type || '';
+  if (key === 'context') return row.context_display || labelClusterPhrase(row.context, labelCluster) || '';
+  if (key === 'significance') return Number(row.significance ?? Number.POSITIVE_INFINITY);
+  if (key === 'pvalue') return Number(row.p_value ?? row.pvalue ?? Number.POSITIVE_INFINITY);
+  if (key === 'amp_phase') return ampPhaseText(row);
+  if (key === 'detail') return row.detail_display || row.detail || '';
+  return '';
 }
 
 function clusterLabelKey(value) {
@@ -230,14 +251,10 @@ function AboutPanel({ onNavigate }) {
           <div className="about-actions">
             <button type="button" className="primary-button" onClick={() => onNavigate('diurnal')}>Explore expression</button>
             <button type="button" onClick={() => onNavigate('rhythmicity')}>Search rhythmicity results</button>
-            <button type="button" onClick={() => onNavigate('hippocampus')}>Dorsal/ventral hippocampus</button>
+            <button type="button" className={`tab ${active === 'rostral_caudal' ? 'active' : ''}`} onClick={() => onActive('rostral_caudal')}>Rostral vs. caudal cortex</button>
+            <button type="button" onClick={() => onNavigate('hippocampus')}>Dorsal vs. ventral hippocampus</button>
           </div>
          </div>
-        {/* <div className="about-hero-card" aria-label="Study highlights">
-          <span className="about-pill">24-hour spatial transcriptomics</span>
-          <span className="about-pill">NTG and APP23 mouse brain</span>
-          <span className="about-pill">Regional rhythmicity and dysregulation</span>
-        </div> */}
       </div>
 
       <article className="about-abstract">
