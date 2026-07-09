@@ -218,8 +218,8 @@ function Tabs({ active, onActive }) {
       <button type="button" className={`tab ${active === 'diurnal' ? 'active' : ''}`} onClick={() => onActive('diurnal')}>Diurnal Expression</button>
       <button type="button" className={`tab ${active === 'spatial' ? 'active' : ''}`} onClick={() => onActive('spatial')}>Spatial mean</button>
       <button type="button" className={`tab ${active === 'rhythmicity' ? 'active' : ''}`} onClick={() => onActive('rhythmicity')}>Rhythmicity results</button>
-      <button type="button" className={`tab ${active === 'rostral_caudal' ? 'active' : ''}`} onClick={() => onActive('rostral_caudal')}>Rostral-Caudal Rhythmicity</button>
-      <button type="button" className={`tab ${active === 'hippocampus' ? 'active' : ''}`} onClick={() => onActive('hippocampus')}>Dorsal/ventral hippocampus</button>
+      <button type="button" className={`tab ${active === 'rostral_caudal' ? 'active' : ''}`} onClick={() => onActive('rostral_caudal')}>Rostral vs. caudal cortex</button>
+      <button type="button" className={`tab ${active === 'hippocampus' ? 'active' : ''}`} onClick={() => onActive('hippocampus')}>Dorsal vs. ventral hippocampus</button>
     </nav>
   );
 }
@@ -257,11 +257,11 @@ function AboutPanel({ onNavigate }) {
             <button type="button" onClick={() => onNavigate('rostral_caudal')}>Rostral-caudal rhythmicity</button>
           </div>
         </div>
-        <div className="about-hero-card" aria-label="Study highlights">
+        {/* <div className="about-hero-card" aria-label="Study highlights">
           <span className="about-pill">24-hour spatial transcriptomics</span>
           <span className="about-pill">NTG and APP23 mouse brain</span>
           <span className="about-pill">Regional rhythmicity and dysregulation</span>
-        </div>
+        </div> */}
       </div>
 
       <div className="about-info-grid">
@@ -989,10 +989,10 @@ function RostralCaudalPanel({
   }
 
   return (
-    <section className="tab-panel active" aria-label="Rostral-Caudal Rhythmicity">
+    <section className="tab-panel active" aria-label="Rostral vs. caudal cortex">
       <div className="rc-panel-header">
         <div>
-          <h2>Rostral-Caudal Rhythmicity</h2>
+          <h2>Rostral vs. caudal cortex</h2>
           <p className="methods-note">Cortical rhythmicity plotted across rostral, intermediate, and caudal cortical positions. Time is double-plotted to show the repeating 24-hour cycle.</p>
         </div>
         {available ? <span className="source-badge">{formatCount(rcMeta.gene_count)} genes</span> : null}
