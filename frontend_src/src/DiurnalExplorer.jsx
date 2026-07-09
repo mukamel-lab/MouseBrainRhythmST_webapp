@@ -8,6 +8,7 @@ const DEFAULT_ROSTRAL_CAUDAL_GENE = 'Dbp';
 const DEFAULT_ROSTRAL_CAUDAL_CLUSTER = 'L23';
 const PREPRINT_URL = 'https://www.biorxiv.org/content/10.64898/2026.01.26.701799v1.full';
 const RAW_DATA_BROWSER_URL = 'https://viewers.karospace.se/viewers/gse282203-combined-binary-sidecar.html';
+const RAW_DATA_DOWNLOAD_URL = 'https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE282203';
 const DEFAULT_COLOR_BY = 'region';
 const DEFAULT_RHYTHMICITY_THRESHOLD = 0.1;
 const PANEL_KEYS = ['map_ntg_7', 'map_ntg_14', 'map_app_7', 'map_app_14'];
@@ -235,7 +236,7 @@ function LoadingApp({ message }) {
         </div>
         <div className="header-actions">
           <a className="header-link-button" href={PREPRINT_URL} target="_blank" rel="noreferrer">Publication</a>
-          <a className="header-link-button" href={RAW_DATA_BROWSER_URL} target="_blank" rel="noreferrer">Data</a>
+          <a className="header-link-button" href={RAW_DATA_DOWNLOAD_URL} target="_blank" rel="noreferrer">Data</a>
         </div>
         <div className="status status-loading">Loading</div>
       </header>
@@ -291,7 +292,7 @@ function AboutPanel({ onNavigate }) {
       <article className="about-card raw-data-card">
         <h3>Data download and external resources</h3>
         <p>
-          Download the raw spatial transcriptomics data and metadata for the study dataset, including the 24-hour NTG and APP23 mouse brain samples, from <a href="https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE282203" target="_blank" rel="noreferrer">GEO accession GSE282203</a>.
+          Download the raw spatial transcriptomics data and metadata for the study dataset, including the 24-hour NTG and APP23 mouse brain samples, from <a href={RAW_DATA_DOWNLOAD_URL} target="_blank" rel="noreferrer">GEO accession GSE282203</a>.
         </p>
         <p>
           Visualize ST datasets in the  <a href={RAW_DATA_BROWSER_URL} target="_blank" rel="noreferrer">KaroSpace browser</a> (external resource), including raw section views, annotations, and gene-expression exploration for the study dataset.

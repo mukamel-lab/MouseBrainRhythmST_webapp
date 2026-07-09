@@ -266,9 +266,10 @@ function diurnal_facet_info(array $row, array $splitBy): array
     $parts = array();
     $keys = array();
     foreach ($splitBy as $variable) {
-        $value = (string) ($row[$variable] ?? '');
+        $value = trim((string) ($row[$variable] ?? ''));
+        if ($value === '') continue;
         $keys[] = $value;
-        $parts[] = diurnal_variable_label($variable) . ': ' . diurnal_row_label($row, $variable);
+        $parts[] = diurnal_row_label($row, $variable);
     }
     return array('key' => implode("\x1f", $keys), 'label' => implode(' · ', $parts));
 }
@@ -435,8 +436,7 @@ function diurnal_plot_svg(string $gene, array $filters, string $colorBy, array $
         $yScale = function (float $y) use ($plotY, $plotH, $yMin, $yMax): float { return $plotY + $plotH - (($y - $yMin) / ($yMax - $yMin)) * $plotH; };
 
         if ($facets[$facetKey] !== '') {
-            $svg[] = '<rect x="' . $panelX . '" y="' . $panelY . '" width="' . $panelWidth . '" height="24" fill="#f8fafc" stroke="#cbd5e1"/>';
-            $svg[] = '<text x="' . ($panelX + $panelWidth / 2) . '" y="' . ($panelY + 16) . '" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#334155">' . xml_escape($facets[$facetKey]) . '</text>';
+            $svg[] = '<text x="' . ($panelX + $panelWidth / 2) . '" y="' . ($panelY + 16) . '" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" font-weight="600" fill="#334155">' . xml_escape($facets[$facetKey]) . '</text>';
         }
 
         $backgrounds = array(array(0, 12, '#F6F18F'), array(12, 24, '#606161'), array(24, 36, '#F6F18F'), array(36, 42, '#606161'));
