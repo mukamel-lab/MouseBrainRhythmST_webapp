@@ -79,3 +79,12 @@ export async function fetchHippocampusDvGenes(query, signal, limit = 80) {
   const payload = await fetchJson('/hippocampus-dv/genes', { q: query ?? '', limit }, signal);
   return asArray(payload.genes ?? payload);
 }
+
+export async function fetchRostralCaudal(params, signal) {
+  return fetchJson('/rostral-caudal', params, signal);
+}
+
+export async function fetchRostralCaudalGenes(query, signal, limit = 80) {
+  const payload = await fetchJson('/rostral-caudal/genes', { q: query ?? '', limit }, signal);
+  return asArray(payload.genes ?? payload);
+}
