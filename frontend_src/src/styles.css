@@ -22,9 +22,12 @@ select { width: 100%; border: 1px solid var(--border); border-radius: .4rem; bac
 select[multiple] option { padding: .25rem; }
 hr { border: 0; border-top: 1px solid var(--border); margin: 1rem 0; }
 
-.app-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.25rem 1.5rem; background: var(--panel); border-bottom: 1px solid var(--border); }
+.app-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 1.25rem 1.5rem; background: var(--panel); border-bottom: 1px solid var(--border); }
+.header-main { display: flex; flex-direction: column; gap: .75rem; flex: 1; min-width: 0; }
 .header-actions { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
 .header-link-button { display: inline-flex; align-items: center; justify-content: center; padding: .5rem .8rem; border: 1px solid var(--border); border-radius: .4rem; background: #fff; color: var(--accent); text-decoration: none; font-weight: 700; }
+.header-main .tabs { margin: 0; padding: 0; border-bottom: 0; flex-wrap: wrap; }
+.header-main .tab { padding: .45rem .7rem; }
 .header-link-button:hover { border-color: var(--accent); color: var(--accent-dark); }
 h1 { margin: 0; font-size: 1.65rem; font-weight: 650; }
 .subtitle { margin: .2rem 0 0; color: var(--muted); font-size: .9rem; }
@@ -81,6 +84,7 @@ h1 { margin: 0; font-size: 1.65rem; font-weight: 650; }
 }
 @media (max-width: 700px) {
   .app-header { align-items: flex-start; flex-direction: column; }
+  .header-main { width: 100%; }
   .layout { padding: .75rem; }
   .spatial-grid { grid-template-columns: 1fr; }
 }

@@ -404,7 +404,7 @@ function diurnal_plot_svg(string $gene, array $filters, string $colorBy, array $
     $panelGapY = 30;
     $panelWidth = (int) floor(($width - $outerLeft - $outerRight - ($columns - 1) * $panelGapX) / max(1, $columns));
     $panelHeight = $facetCount === 1 ? 430 : 350;
-    $legendHeight = max(78, (int) ceil(count($colors) / 4) * 28 + 50);
+    $legendHeight = max(78, count($colors) * 26 + 50);
     $height = $top + $rowsCount * $panelHeight + max(0, $rowsCount - 1) * $panelGapY + $legendHeight + 48;
 
     $svg = array();
@@ -499,24 +499,19 @@ function diurnal_plot_svg(string $gene, array $filters, string $colorBy, array $
     }
 
     $plotBottom = $top + $rowsCount * $panelHeight + max(0, $rowsCount - 1) * $panelGapY;
-    $svg[] = '<text x="' . ($width / 2) . '" y="' . ($plotBottom + 24) . '" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#111827">Zeitgeber Time (double plotted)</text>';
-    $svg[] = '<text x="18" y="' . ($top + ($plotBottom - $top) / 2) . '" transform="rotate(-90 18 ' . ($top + ($plotBottom - $top) / 2) . ')" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#111827">log2 Normalized mRNA Expression</text>';
+    $svg[] = '<text x="' . ($width / 2) . '" y="' . ($plotBottom + 24) . '" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#111827">Zeitgeber time (h) (double plotted)</text>';
+    $svg[] = '<text x="18" y="' . ($top + ($plotBottom - $top) / 2) . '" transform="rotate(-90 18 ' . ($top + ($plotBottom - $top) / 2) . ')" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#111827">Normalized mRNA expression (log2 CPM)</text>';
 
     $legendY = $plotBottom + 52;
     $svg[] = '<text x="' . $outerLeft . '" y="' . ($legendY + 5) . '" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#334155">' . xml_escape(diurnal_variable_label($colorBy)) . '</text>';
     $legendX = $outerLeft + 120;
     $legendRow = 0;
-    $legendColumn = 0;
     foreach ($colors as $entry) {
-        $x = $legendX + $legendColumn * 185;
+        $x = $legendX;
         $y = $legendY + $legendRow * 26;
         $svg[] = '<line x1="' . $x . '" y1="' . $y . '" x2="' . ($x + 18) . '" y2="' . $y . '" stroke="' . xml_escape($entry['color']) . '" stroke-width="3"/>';
         $svg[] = '<text x="' . ($x + 24) . '" y="' . ($y + 4) . '" font-family="Arial, sans-serif" font-size="13" fill="#334155">' . xml_escape($entry['label']) . '</text>';
-        $legendColumn++;
-        if ($legendColumn >= 4) {
-            $legendColumn = 0;
-            $legendRow++;
-        }
+        $legendRow++;
     }
     $svg[] = '</svg>';
     return implode('', $svg);

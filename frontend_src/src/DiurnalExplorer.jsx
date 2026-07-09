@@ -9,7 +9,8 @@ const DEFAULT_ROSTRAL_CAUDAL_CLUSTER = 'L23';
 const PREPRINT_URL = 'https://www.biorxiv.org/content/10.64898/2026.01.26.701799v1.full';
 const RAW_DATA_BROWSER_URL = 'https://viewers.karospace.se/viewers/gse282203-combined-binary-sidecar.html';
 const RAW_DATA_DOWNLOAD_URL = 'https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE282203';
-const DEFAULT_COLOR_BY = 'region';
+const DEFAULT_COLOR_BY = 'genotype';
+const DEFAULT_SPLIT_BY = ['age'];
 const DEFAULT_RHYTHMICITY_THRESHOLD = 0.1;
 const PANEL_KEYS = ['map_ntg_7', 'map_ntg_14', 'map_app_7', 'map_app_14'];
 
@@ -1131,12 +1132,19 @@ export default function DiurnalExplorer() {
     setGene(nextGene);
     setGeneInput(nextGene);
     setGeneMessage('');
-    setIncludeRegion(normalizeDefaults(nextMetadata, 'include_region').length ? normalizeDefaults(nextMetadata, 'include_region') : asArray(choices.region));
-    setIncludeAge(normalizeDefaults(nextMetadata, 'include_age').length ? normalizeDefaults(nextMetadata, 'include_age') : asArray(choices.age));
-    setIncludeSex(normalizeDefaults(nextMetadata, 'include_sex').length ? normalizeDefaults(nextMetadata, 'include_sex') : asArray(choices.sex));
-    setIncludeGenotype(normalizeDefaults(nextMetadata, 'include_genotype').length ? normalizeDefaults(nextMetadata, 'include_genotype') : asArray(choices.genotype));
-    setColorBy(String(defaults.color_by || DEFAULT_COLOR_BY));
-    setSplitBy(normalizeDefaults(nextMetadata, 'split_by'));
+    const regionDefaults = normalizeDefaults(nextMetadata, 'include_region');
+    const ageDefaults = normalizeDefaults(nextMetadata, 'include_age');
+    const sexDefaults = normalizeDefaults(nextMetadata, 'include_sex');
+    const genotypeChoices = asArray(choices.genotype).filter(Boolean);
+    const genotypeDefaults = normalizeDefaults(nextMetadata, 'include_genotype');
+    const nextIncludeGenotype = genotypeChoices.length > 1 ? genotypeChoices : (genotypeDefaults.length ? genotypeDefaults : genotypeChoices);
+
+    setIncludeRegion(regionDefaults.length ? regionDefaults : asArray(choices.region));
+    setIncludeAge(ageDefaults.length ? ageDefaults : asArray(choices.age));
+    setIncludeSex(sexDefaults.length ? sexDefaults : asArray(choices.sex));
+    setIncludeGenotype(nextIncludeGenotype);
+    setColorBy(String(defaults.color_by && defaults.color_by !== 'region' ? defaults.color_by : DEFAULT_COLOR_BY));
+    setSplitBy(normalizeDefaults(nextMetadata, 'split_by').length ? normalizeDefaults(nextMetadata, 'split_by') : DEFAULT_SPLIT_BY);
     setGamma(Number(defaults.gamma || 1.7));
     setRhythmGeneInput(nextGene);
     setRhythmQuery(nextGene);
@@ -1475,10 +1483,13 @@ export default function DiurnalExplorer() {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <div>
-          <p className="brand-kicker"><a href="https://desplatslab.org/" target="_blank" rel="noreferrer">Desplats Lab</a> × <a href="https://brainome.ucsd.edu/" target="_blank" rel="noreferrer">Mukamel Lab</a> · UC San Diego</p>
-          <h1>Spatio-Temporal Atlas of the Diurnal Mouse Brain Transcriptome</h1>
-          <p className="subtitle">Spatial transcriptomics of 24-hour brain transcription in healthy and APP23 mouse brain.</p>
+        <div className="header-main">
+          <div>
+            <p className="brand-kicker"><a href="https://desplatslab.org/" target="_blank" rel="noreferrer">Desplats Lab</a> × <a href="https://brainome.ucsd.edu/" target="_blank" rel="noreferrer">Mukamel Lab</a> · UC San Diego</p>
+            <h1>Spatio-Temporal Atlas of the Diurnal Mouse Brain Transcriptome</h1>
+            <p className="subtitle">Spatial transcriptomics of 24-hour brain transcription in healthy and APP23 mouse brain.</p>
+          </div>
+          <Tabs active={activeTab} onActive={setActiveTab} />
         </div>
         <div className="header-actions">
           <a className="header-link-button" href={PREPRINT_URL} target="_blank" rel="noreferrer">Publication</a>
@@ -1569,8 +1580,6 @@ export default function DiurnalExplorer() {
         ) : null}
 
         <section className="content">
-          <Tabs active={activeTab} onActive={setActiveTab} />
-
           {activeTab === 'about' ? <AboutPanel onNavigate={setActiveTab} /> : null}
 
           {activeTab === 'diurnal' ? (
