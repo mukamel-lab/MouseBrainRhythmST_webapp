@@ -227,7 +227,7 @@ function LoadingApp({ message }) {
     <div className="app-shell single-panel">
       <header className="app-header">
         <div>
-          <p className="brand-kicker">Desplats Lab × Mukamel Lab · UC San Diego</p>
+          <p className="brand-kicker"><a href="https://desplatslab.org/" target="_blank" rel="noreferrer">Desplats Lab</a> × <a href="https://brainome.ucsd.edu/" target="_blank" rel="noreferrer">Mukamel Lab</a> · UC San Diego</p>
           <h1>Diurnal Brain Transcriptome Atlas</h1>
           <p className="subtitle">Spatial transcriptomics of diurnal gene expression dynamics in the mouse brain in the context of aging and Alzheimer's disease</p>
         </div>
@@ -267,7 +267,7 @@ function AboutPanel({ onNavigate }) {
       <div className="about-info-grid">
         <article className="about-card">
           <h3>Citation</h3>
-          <p><a href="https://www.biorxiv.org/content/10.64898/2026.01.26.701799v1.full" target="_blank" rel="noopener noreferrer">Gelber, Romero et al., BioRxiv 2026</a></p>
+          <p><a href={PREPRINT_URL} target="_blank" rel="noreferrer">Gelber, Romero et al., bioRxiv 2026</a></p>
         </article>
         <article className="about-card">
           <h3>Contact</h3>
@@ -284,6 +284,15 @@ function AboutPanel({ onNavigate }) {
           <h3>See also</h3>
           <p>(external): <a href="https://viewers.karospace.se/viewers/gse282203-combined-binary-sidecar.html" target="_blank" rel="noopener noreferrer">Karospace viewer for individual ST samples</a></p>
         </article>
+
+
+      <article className="about-card raw-data-card">
+        <h3>External raw data browser</h3>
+        <p>
+          View the section-level spatial transcriptomics data in an external KaroSpace browser, including raw section views, annotations, and gene-expression exploration for the study dataset.
+        </p>
+        <a className="download-button" href={RAW_DATA_BROWSER_URL} target="_blank" rel="noreferrer">Open raw data browser</a>
+      </article>
       </div>
 
     </section>
@@ -296,32 +305,68 @@ function RhythmicitySourceBadges({ counts = {} }) {
   return (
     <div className="source-badges" aria-label="Rhythmicity source counts">
       {entries.map(([source, count]) => (
-        <span className="source-badge" key={source}>{source}: {formatCount(count)}</span>
+        <span className="source-badge" key={source}>{sourceTableLabel(source)}: {formatCount(count)}</span>
       ))}
     </div>
   );
 }
 
 function RhythmicityResultsTable({ rows = [], labelCluster = (value) => value }) {
+  const [sortConfig, setSortConfig] = useState({ key: '', direction: 'none' });
+  const columns = [
+    ['source', 'Source'],
+    ['result', 'Result'],
+    ['context', 'Context'],
+    ['significance', 'FDR/padj'],
+    ['pvalue', 'p value'],
+    ['amp_phase', 'Amplitude / phase'],
+    ['detail', 'Details'],
+  ];
+  const sortedRows = useMemo(() => {
+    if (!sortConfig.key || sortConfig.direction === 'none') return rows;
+    const direction = sortConfig.direction === 'asc' ? 1 : -1;
+    return [...rows].sort((a, b) => {
+      const av = sortValue(a, sortConfig.key, labelCluster);
+      const bv = sortValue(b, sortConfig.key, labelCluster);
+      const aMissing = av === null || av === undefined || av === '' || Number.isNaN(av);
+      const bMissing = bv === null || bv === undefined || bv === '' || Number.isNaN(bv);
+      if (aMissing && bMissing) return 0;
+      if (aMissing) return 1;
+      if (bMissing) return -1;
+      if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * direction;
+      return String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: 'base' }) * direction;
+    });
+  }, [rows, sortConfig, labelCluster]);
+  function toggleSort(key) {
+    setSortConfig((current) => {
+      if (current.key !== key) return { key, direction: 'asc' };
+      if (current.direction === 'asc') return { key, direction: 'desc' };
+      return { key: '', direction: 'none' };
+    });
+  }
+  function sortMarker(key) {
+    if (sortConfig.key !== key) return '';
+    return sortConfig.direction === 'asc' ? ' ▲' : ' ▼';
+  }
   if (!rows.length) return null;
   return (
     <div className="results-table-wrap">
-      <table className="results-table">
+      <table className="results-table sortable-table">
         <thead>
           <tr>
-            <th>Source</th>
-            <th>Result</th>
-            <th>Context</th>
-            <th>FDR/padj</th>
-            <th>p value</th>
-            <th>Amplitude / phase</th>
-            <th>Details</th>
+            {columns.map(([key, label]) => (
+              <th key={key}>
+                <button type="button" className="table-sort-button" onClick={() => toggleSort(key)}>
+                  {label}{sortMarker(key)}
+                </button>
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, index) => (
+          {sortedRows.map((row, index) => (
             <tr key={`${row.table_id}-${row.sheet}-${row.context}-${index}`}>
-              <td><strong>{row.table_id}</strong><br /><span>{row.table_name}</span></td>
+              <td><strong>{sourceTableLabel(row.table_id)}</strong><br /><span>{row.table_name}</span></td>
               <td>{row.result_type}</td>
               <td>{displayValue(row.context_display || labelClusterPhrase(row.context, labelCluster))}</td>
               <td><strong>{displayValue(row.significance_display)}</strong><br /><span>{row.significance_metric}</span></td>
@@ -367,7 +412,7 @@ function BasicRhythmicityCall({ label, result, threshold }) {
           <dd>{result.phase_hr ? `${result.phase_hr} h` : '—'}</dd>
         </div>
       </dl>
-      <p className="basic-rhythm-source">{result.table_id}: {result.table_name}</p>
+      <p className="basic-rhythm-source">{sourceTableLabel(result.table_id)}: {result.table_name}</p>
     </div>
   );
 }
@@ -495,7 +540,7 @@ function RhythmicityPanel({
           </div>
         </form>
         <p className="methods-note">
-          Results are indexed from S1, S2, S3, S6, and S10 and filtered to rows with the table-specific FDR-like value or padj &lt; {thresholdDisplay}. DEG-only and enrichment-only tables are intentionally excluded from this gene-level rhythmicity search.
+          Results are indexed from Sup Table 1, Sup Table 2, Sup Table 3, Sup Table 6, and Sup Table 10 and filtered to rows with the table-specific FDR-like value or padj &lt; {thresholdDisplay}. DEG-only and enrichment-only tables are intentionally excluded from this gene-level rhythmicity search.
         </p>
       </div>
 
@@ -728,11 +773,7 @@ function HippocampusAllenPanel({
           {allenPayload && allenPayload.found ? (
             <>
               <div className="allen-image-frame">
-                <img
-                  className="allen-ish-img"
-                  src={allenPayload.image_url}
-                  alt={`Allen Brain Atlas ISH for ${allenPayload.gene}`}
-                />
+                <AllenIshImage payload={allenPayload} />
               </div>
               <dl className="allen-meta">
                 <div><dt>Gene</dt><dd>{allenPayload.gene}</dd></div>
@@ -751,6 +792,267 @@ function HippocampusAllenPanel({
   );
 }
 
+
+
+
+function stableUnitInterval(value) {
+  const text = String(value ?? '');
+  let hash = 2166136261;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return ((hash >>> 0) % 10000) / 9999;
+}
+
+function svgPoints(points) {
+  return points.map((point) => `${Number(point[0]).toFixed(2)},${Number(point[1]).toFixed(2)}`).join(' ');
+}
+
+function RostralCaudalReactPlot({ payload }) {
+  const plot = payload?.plot;
+  if (!plot) return <div className="empty-results compact-empty">No plot data were returned for this gene and cortical layer.</div>;
+
+  const width = 760;
+  const height = 590;
+  const margin = { top: 58, right: 24, bottom: 118, left: 82 };
+  const plotW = width - margin.left - margin.right;
+  const plotH = height - margin.top - margin.bottom;
+  const xMin = Number(plot.x_min ?? 0);
+  const xMax = Number(plot.x_max ?? 42);
+  const yMin = Number(plot.y_min ?? 0);
+  const yMax = Number(plot.y_max ?? 1);
+  const yRange = yMax - yMin || 1;
+  const regions = Array.isArray(plot.regions) ? plot.regions : [];
+  const regionById = Object.fromEntries(regions.map((region) => [region.id, region]));
+  const yTicks = Array.isArray(plot.y_ticks) && plot.y_ticks.length ? plot.y_ticks.map(Number).filter(Number.isFinite) : [yMin, yMax];
+  const yHasDecimals = yTicks.some((tick) => Math.abs(tick - Math.round(tick)) > 1e-6);
+  const yTickLabel = (tick) => (yHasDecimals ? Number(tick).toFixed(1) : String(Number(tick).toFixed(0)));
+  const xTicks = Array.isArray(plot.x_ticks) && plot.x_ticks.length ? plot.x_ticks : [
+    { x: 0, label: '0' },
+    { x: 12, label: '12' },
+    { x: 24, label: '0' },
+    { x: 36, label: '12' },
+  ];
+  const xScale = (value) => margin.left + ((Number(value) - xMin) / (xMax - xMin || 1)) * plotW;
+  const yScale = (value) => margin.top + plotH - ((Number(value) - yMin) / yRange) * plotH;
+  const colorFor = (region) => regionById[region]?.color || '#2563eb';
+  const curveRows = Array.isArray(plot.curves) ? plot.curves : [];
+  const rawPoints = Array.isArray(plot.points) ? plot.points : [];
+  const summaries = Array.isArray(plot.summaries) ? plot.summaries : [];
+
+  return (
+    <div className="rc-plot-frame">
+      <svg className="rc-react-plot" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Rostral-caudal rhythmicity plot for ${payload.gene}`}>
+        <rect width={width} height={height} fill="white" />
+        <text x={width / 2} y="30" textAnchor="middle" className="rc-plot-title">{payload.gene}</text>
+        <defs>
+          <clipPath id="rcReactPlotClip">
+            <rect x={margin.left} y={margin.top} width={plotW} height={plotH} />
+          </clipPath>
+        </defs>
+
+        {[
+          [0, 12, '#F6F18F'],
+          [12, 24, '#606161'],
+          [24, 36, '#F6F18F'],
+          [36, 42, '#606161'],
+        ].map(([start, end, color]) => (
+          <rect
+            key={`${start}-${end}`}
+            x={xScale(start)}
+            y={margin.top}
+            width={xScale(end) - xScale(start)}
+            height={plotH}
+            fill={color}
+            opacity="0.10"
+          />
+        ))}
+
+        {[0, 12, 24, 36].map((tick) => (
+          <line key={`xgrid-${tick}`} x1={xScale(tick)} y1={margin.top} x2={xScale(tick)} y2={margin.top + plotH} className="rc-grid-line" />
+        ))}
+        {yTicks.map((tick) => {
+          const y = yScale(tick);
+          return (
+            <g key={`ytick-${tick}`}>
+              <line x1={margin.left} y1={y} x2={margin.left + plotW} y2={y} className="rc-grid-line" />
+              <text x={margin.left - 11} y={y + 4.5} textAnchor="end" className="rc-axis-text">{yTickLabel(tick)}</text>
+            </g>
+          );
+        })}
+
+        <g clipPath="url(#rcReactPlotClip)">
+          {curveRows.map((curve) => {
+            const points = (curve.points || []).map((point) => [xScale(point.x), yScale(point.y)]);
+            return <polyline key={`curve-${curve.region}`} points={svgPoints(points)} fill="none" stroke={colorFor(curve.region)} strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round" />;
+          })}
+
+          {rawPoints.map((point, index) => {
+            const jitter = (stableUnitInterval(point.sample_key || `${point.region}-${point.x}-${index}`) - 0.5) * 0.90;
+            return (
+              <circle
+                key={`point-${index}`}
+                cx={xScale(Number(point.x) + jitter)}
+                cy={yScale(point.y)}
+                r="2.1"
+                fill={colorFor(point.region)}
+                opacity="0.25"
+              />
+            );
+          })}
+
+          {summaries.map((summary, index) => {
+            const x = xScale(summary.x);
+            const meanY = yScale(summary.mean);
+            const lowY = yScale(Number(summary.mean) - Number(summary.sd || 0));
+            const highY = yScale(Number(summary.mean) + Number(summary.sd || 0));
+            const color = colorFor(summary.region);
+            return (
+              <g key={`summary-${summary.region}-${summary.x}-${index}`}>
+                <line x1={x} y1={lowY} x2={x} y2={highY} stroke={color} strokeWidth="1.35" />
+                <line x1={x - 4.5} y1={lowY} x2={x + 4.5} y2={lowY} stroke={color} strokeWidth="1.35" />
+                <line x1={x - 4.5} y1={highY} x2={x + 4.5} y2={highY} stroke={color} strokeWidth="1.35" />
+                <circle cx={x} cy={meanY} r="4.7" fill={color} stroke="white" strokeWidth="0.8" />
+              </g>
+            );
+          })}
+        </g>
+
+        <rect x={margin.left} y={margin.top} width={plotW} height={plotH} fill="none" className="rc-axis-box" />
+        {xTicks.map((tick) => {
+          const x = xScale(tick.x);
+          return (
+            <g key={`xtick-${tick.x}`}>
+              <line x1={x} y1={margin.top + plotH} x2={x} y2={margin.top + plotH + 5} className="rc-axis-tick" />
+              <text x={x} y={margin.top + plotH + 23} textAnchor="middle" className="rc-axis-text">{tick.label}</text>
+            </g>
+          );
+        })}
+        <text x={width / 2} y={margin.top + plotH + 55} textAnchor="middle" className="rc-axis-label">Zeitgeber Time (double plotted)</text>
+        <text x="24" y={margin.top + plotH / 2} transform={`rotate(-90 24 ${margin.top + plotH / 2})`} textAnchor="middle" className="rc-axis-label">log2 Normalized mRNA Expression</text>
+
+        <g transform={`translate(${margin.left + 150}, ${height - 50})`}>
+          <text x="-96" y="5" className="rc-legend-title">Cortical position</text>
+          {regions.map((region, index) => (
+            <g key={region.id} transform={`translate(${index * 158}, 0)`}>
+              <line x1="0" y1="0" x2="22" y2="0" stroke={region.color || '#2563eb'} strokeWidth="3.2" />
+              <text x="30" y="5" className="rc-legend-text">{region.label}</text>
+            </g>
+          ))}
+        </g>
+      </svg>
+    </div>
+  );
+}
+
+function AllenIshImage({ payload }) {
+  if (!payload?.image_url) return null;
+  return (
+    <img
+      className="allen-ish-img"
+      src={payload.image_url}
+      alt={`Allen Brain Atlas ISH for ${payload.gene}`}
+      onError={(event) => {
+        if (payload.allen_image_url && event.currentTarget.src !== payload.allen_image_url) {
+          event.currentTarget.src = payload.allen_image_url;
+        }
+      }}
+    />
+  );
+}
+
+function RostralCaudalPanel({
+  metadata,
+  currentGene,
+  rcGeneInput,
+  setRcGeneInput,
+  rcGene,
+  setRcGene,
+  rcGeneOptions,
+  rcCluster,
+  setRcCluster,
+  rcPayload,
+  rcError,
+  rcDownloadUrl,
+}) {
+  const rcMeta = metadata?.rostral_caudal || {};
+  const available = Boolean(rcMeta.available);
+  const clusterOptions = Array.isArray(rcMeta.clusters) ? rcMeta.clusters : [];
+
+  function submitGene(event) {
+    event.preventDefault();
+    const nextGene = String(rcGeneInput || '').trim() || currentGene || DEFAULT_ROSTRAL_CAUDAL_GENE;
+    setRcGeneInput(nextGene);
+    setRcGene(nextGene);
+  }
+
+  return (
+    <section className="tab-panel active" aria-label="Rostral-Caudal Rhythmicity">
+      <div className="rc-panel-header">
+        <div>
+          <h2>Rostral-Caudal Rhythmicity</h2>
+          <p className="methods-note">Cortical rhythmicity plotted across rostral, intermediate, and caudal cortical positions. Time is double-plotted to show the repeating 24-hour cycle.</p>
+        </div>
+        {available ? <span className="source-badge">{formatCount(rcMeta.gene_count)} genes</span> : null}
+      </div>
+
+      <form className="rhythm-search-form rc-controls" onSubmit={submitGene}>
+        <label className="control-label" htmlFor="rcGeneInput">Gene</label>
+        <div className="rhythm-search-row">
+          <input
+            id="rcGeneInput"
+            className="text-input"
+            list="rcGeneOptions"
+            value={rcGeneInput}
+            onChange={(event) => setRcGeneInput(event.target.value)}
+            placeholder="Gene symbol, e.g. Dbp"
+            autoComplete="off"
+            spellCheck="false"
+          />
+          <datalist id="rcGeneOptions">
+            {rcGeneOptions.map((option) => <option key={option} value={option} />)}
+          </datalist>
+          <button type="submit" className="primary-button">Apply gene</button>
+          <button type="button" onClick={() => { setRcGeneInput(currentGene); setRcGene(currentGene); }}>Use current plot gene</button>
+        </div>
+        <label className="control-label" htmlFor="rcCluster">Cortical layer</label>
+        <select id="rcCluster" value={rcCluster} onChange={(event) => setRcCluster(event.target.value)}>
+          {clusterOptions.map((cluster) => (
+            <option key={cluster.id} value={cluster.id}>{cluster.label || cluster.id}</option>
+          ))}
+        </select>
+      </form>
+
+      {!available ? (
+        <div className="empty-results">
+          <h2>Rostral-caudal rhythmicity data not installed</h2>
+          <p>Run the rostral-caudal SQLite export and install <code>data-private/rostral_caudal.sqlite</code> to enable this tab.</p>
+        </div>
+      ) : null}
+      {rcError ? <div className="error-banner">Rostral-caudal lookup failed. {rcError}</div> : null}
+      {available && !rcPayload && !rcError ? <div className="loading">Loading rostral-caudal rhythmicity…</div> : null}
+      {rcPayload && rcPayload.available && !rcPayload.found ? (
+        <div className="empty-results">
+          <h2>No rostral-caudal data for “{rcPayload.input || rcGene}”</h2>
+          {Array.isArray(rcPayload.suggestions) && rcPayload.suggestions.length ? <p>Suggestions: {rcPayload.suggestions.slice(0, 10).join(', ')}</p> : <p>Try another gene symbol or cortical layer.</p>}
+        </div>
+      ) : null}
+      {rcPayload && rcPayload.found ? (
+        <>
+          <RostralCaudalReactPlot payload={rcPayload} />
+          <div className="result-summary compact-summary">
+            <div>
+              <h2>{rcPayload.gene}</h2>
+              <p>{rcPayload.cluster_label || rcPayload.cluster} · {formatCount(rcPayload.point_count)} expression points · {formatCount(rcPayload.model_count)} model fits</p>
+            </div>
+            <a className="download-button" href={rcDownloadUrl} download={`rostral_caudal_${cleanFilename(rcPayload.gene)}.svg`}>Download SVG</a>
+          </div>
+        </>
+      ) : null}
+    </section>
+  );
+}
 
 export default function DiurnalExplorer() {
   const [metadata, setMetadata] = useState(null);
@@ -797,6 +1099,13 @@ export default function DiurnalExplorer() {
   const [allenPayload, setAllenPayload] = useState(null);
   const [allenError, setAllenError] = useState('');
 
+  const [rcGeneInput, setRcGeneInput] = useState(DEFAULT_ROSTRAL_CAUDAL_GENE);
+  const [rcGene, setRcGene] = useState(DEFAULT_ROSTRAL_CAUDAL_GENE);
+  const [rcGeneOptions, setRcGeneOptions] = useState([]);
+  const [rcCluster, setRcCluster] = useState(DEFAULT_ROSTRAL_CAUDAL_CLUSTER);
+  const [rcPayload, setRcPayload] = useState(null);
+  const [rcError, setRcError] = useState('');
+
   const applyDefaults = useCallback((nextMetadata) => {
     if (!nextMetadata) return;
     const defaults = nextMetadata.defaults || {};
@@ -827,6 +1136,14 @@ export default function DiurnalExplorer() {
     setHipError('');
     setAllenView(nextMetadata.allen?.default_view || 'ish');
     setAllenDownsample(Number(nextMetadata.allen?.default_downsample || 4));
+    const rcDefaults = nextMetadata.rostral_caudal || {};
+    const nextRcGene = String(rcDefaults.default_gene || DEFAULT_ROSTRAL_CAUDAL_GENE);
+    setRcGeneInput(nextRcGene);
+    setRcGene(nextRcGene);
+    setRcGeneOptions(nextRcGene ? [nextRcGene] : []);
+    setRcCluster(String(rcDefaults.default_cluster || DEFAULT_ROSTRAL_CAUDAL_CLUSTER));
+    setRcPayload(null);
+    setRcError('');
     setRefreshToken((value) => value + 1);
   }, []);
 
@@ -940,14 +1257,19 @@ export default function DiurnalExplorer() {
     split_by: splitBy,
   }), [gene, includeRegion, includeAge, includeSex, includeGenotype, colorBy, splitBy]);
 
-  const plotSvgUrl = useMemo(() => apiUrl('/plot.svg', { ...plotParams, _: refreshToken }), [plotParams, refreshToken]);
-  const plotDownloadUrl = useMemo(() => apiUrl('/plot.svg', { ...plotParams, download: 1 }), [plotParams]);
+  const plotSvgUrl = useMemo(() => apiUrl('/plot.svg', { ...plotParams, width: 760, _: refreshToken }), [plotParams, refreshToken]);
+  const plotDownloadUrl = useMemo(() => apiUrl('/plot.svg', { ...plotParams, width: 980, download: 1 }), [plotParams]);
   const hipPlotUrl = useMemo(() => apiUrl('/hippocampus-dv/plot.svg', {
     gene: hipGene,
     cluster: hipCluster,
     split_by: hipSplitBy,
     _: refreshToken,
   }), [hipGene, hipCluster, hipSplitBy, refreshToken]);
+  const rcDownloadUrl = useMemo(() => apiUrl('/rostral-caudal/plot.svg', {
+    gene: rcGene,
+    cluster: rcCluster,
+    download: 1,
+  }), [rcGene, rcCluster]);
 
   useEffect(() => {
     if (!metadata || activeTab !== 'diurnal') return;
@@ -1026,6 +1348,44 @@ export default function DiurnalExplorer() {
   }, [metadata, activeTab, rhythmQuery, rhythmThreshold, rhythmSource]);
 
   useEffect(() => {
+    if (!metadata || activeTab !== 'rostral_caudal') return undefined;
+    let controller;
+    const handle = setTimeout(() => {
+      controller = new AbortController();
+      fetchRostralCaudalGenes(rcGeneInput.trim(), controller.signal)
+        .then((genes) => setRcGeneOptions(genes))
+        .catch((error) => {
+          if (error.name !== 'AbortError') setRcGeneOptions([]);
+        });
+    }, 200);
+    return () => {
+      clearTimeout(handle);
+      if (controller) controller.abort();
+    };
+  }, [metadata, activeTab, rcGeneInput]);
+
+  useEffect(() => {
+    if (!metadata || activeTab !== 'rostral_caudal') return undefined;
+    const controller = new AbortController();
+    async function loadRostralCaudal() {
+      try {
+        setRcPayload(null);
+        setRcError('');
+        setStatus('Rendering');
+        const payload = await fetchRostralCaudal({ gene: rcGene, cluster: rcCluster }, controller.signal);
+        setRcPayload(payload);
+        setStatus('Ready');
+      } catch (error) {
+        if (error.name === 'AbortError') return;
+        setRcError(error.message);
+        setStatus('Error');
+      }
+    }
+    loadRostralCaudal();
+    return () => controller.abort();
+  }, [metadata, activeTab, rcGene, rcCluster, refreshToken]);
+
+  useEffect(() => {
     if (!metadata || activeTab !== 'hippocampus') return undefined;
     let controller;
     const handle = setTimeout(() => {
@@ -1097,24 +1457,11 @@ export default function DiurnalExplorer() {
     <div className="app-shell">
       <header className="app-header">
         <div>
-          <p className="brand-kicker"><a href="https://desplatslab.org/">Desplats Lab</a> + <a href="https://brainome.ucsd.edu" target="_blank">Mukamel Lab</a> · UC San Diego</p>
+          <p className="brand-kicker"><a href="https://desplatslab.org/" target="_blank" rel="noreferrer">Desplats Lab</a> × <a href="https://brainome.ucsd.edu/" target="_blank" rel="noreferrer">Mukamel Lab</a> · UC San Diego</p>
           <h1>Diurnal Brain Transcriptome Atlas</h1>
-          <p className="subtitle">Spatial transcriptomics of diurnal gene expression in the mouse brain in the context of Alzheimer's disease</p>
+          <p className="subtitle">Spatial transcriptomics of 24-hour brain transcription in healthy and APP23 mouse brain</p>
         </div>
-        <div className="header-actions">
-          <a
-            className="header-github-link"
-            href="https://github.com/mukamel-lab/MouseBrainRhythmST"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="View repository on GitHub"
-          >
-            <svg viewBox="0 0 16 16" aria-hidden="true">
-              <path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82A7.633 7.633 0 0 0 8 3c-.68.006-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path>
-            </svg>
-          </a>
-          {/* <div className={`status ${status === 'Error' ? 'status-error' : status === 'Rendering' || status === 'Connecting' ? 'status-loading' : 'status-ready'}`}>{status}</div> */}
-        </div>
+        <div className={`status ${status === 'Error' ? 'status-error' : status === 'Rendering' || status === 'Connecting' ? 'status-loading' : 'status-ready'}`}>{status}</div>
       </header>
 
       <main className={activeTab === 'about' ? 'layout about-layout' : 'layout'}>
@@ -1168,33 +1515,27 @@ export default function DiurnalExplorer() {
           </p>
           {geneMessage ? <p className={`gene-message ${geneMessage.startsWith('Current') ? 'gene-message-ok' : ''}`}>{geneMessage}</p> : null}
 
-          {activeTab === 'diurnal' ? (
-            <>
-              <MultiSelect label="Include Regions" options={choices.region} value={includeRegion} onChange={setIncludeRegion} size={8} optionLabel={labelCluster} />
-              <MultiSelect label="Include Ages" options={choices.age} value={includeAge} onChange={setIncludeAge} size={3} />
-              <MultiSelect label="Include Sexes" options={choices.sex} value={includeSex} onChange={setIncludeSex} size={3} />
-              <MultiSelect label="Include Genotypes" options={choices.genotype} value={includeGenotype} onChange={setIncludeGenotype} size={3} />
+          <MultiSelect label="Include Regions" options={choices.region} value={includeRegion} onChange={setIncludeRegion} size={8} optionLabel={labelCluster} />
+          <MultiSelect label="Include Ages" options={choices.age} value={includeAge} onChange={setIncludeAge} size={3} />
+          <MultiSelect label="Include Sexes" options={choices.sex} value={includeSex} onChange={setIncludeSex} size={3} />
+          <MultiSelect label="Include Genotypes" options={choices.genotype} value={includeGenotype} onChange={setIncludeGenotype} size={3} />
 
-              <hr />
+          <hr />
 
-              <label className="control-label" htmlFor="colorBy">Color by</label>
-              <select id="colorBy" value={colorBy} onChange={(event) => setColorBy(event.target.value)}>
-                {choices.color_by.map((option) => <option key={option} value={option}>{labelVariable(option)}</option>)}
-              </select>
-            </>
-          ) : null}
+          <label className="control-label" htmlFor="colorBy">Color by</label>
+          <select id="colorBy" value={colorBy} onChange={(event) => setColorBy(event.target.value)}>
+            {choices.color_by.map((option) => <option key={option} value={option}>{labelVariable(option)}</option>)}
+          </select>
 
-          {activeTab === 'diurnal' ? (
-            <CheckboxGroup label="Split by" options={choices.split_by} value={splitBy} onChange={setSplitBy} optionLabel={labelVariable} />
-          ) : null}
+          <CheckboxGroup label="Split by" options={choices.split_by} value={splitBy} onChange={setSplitBy} optionLabel={labelVariable} />
 
-          {activeTab === 'spatial' ? (
-            <>
-              <label className="control-label" htmlFor="gamma">Spatial scale contrast <span className="gamma-value">{Number(gamma).toFixed(1)}</span></label>
-              <input id="gamma" type="range" min="0.5" max="3" step="0.1" value={gamma} onChange={(event) => setGamma(Number(event.target.value))} />
-            </>
-          ) : null}
+          <label className="control-label" htmlFor="gamma">Spatial scale contrast <span className="gamma-value">{Number(gamma).toFixed(1)}</span></label>
+          <input id="gamma" type="range" min="0.5" max="3" step="0.1" value={gamma} onChange={(event) => setGamma(Number(event.target.value))} />
 
+          <div className="action-row">
+            <button type="button" className="primary-button" onClick={() => setRefreshToken((value) => value + 1)}>Refresh current plot</button>
+            <button type="button" onClick={() => applyDefaults(metadata)}>Reset</button>
+          </div>
         </aside>
         ) : null}
 
@@ -1214,7 +1555,7 @@ export default function DiurnalExplorer() {
                 onLoad={() => { setPlotError(''); setStatus('Ready'); }}
                 onError={() => { setPlotError('The backend did not return a displayable SVG.'); setStatus('Error'); }}
               />
-              <p className="methods-note">Small dots represent individual samples. Large dots and error bars show the mean ± 1 SD per timepoint and group. The solid line is the fitted sinusoidal model, double-plotted. Yellow/grey shading indicates light and dark phases, respectively.</p>
+              <p className="methods-note">Small dots represent individual animals. Large dots and error bars show the mean ± 1 SD per timepoint and group. The solid line is the fitted sinusoidal model, double-plotted. Yellow/grey shading indicates light and dark phases, respectively.</p>
               <CompactRhythmicityUnderPlot gene={plotParams.gene} payload={plotBasicRhythmPayload} error={plotBasicRhythmError} labelCluster={labelCluster} />
               <a className="download-button" href={plotDownloadUrl} download={`circadian_${cleanFilename(plotParams.gene)}.svg`}>Download SVG</a>
             </section>
@@ -1255,6 +1596,23 @@ export default function DiurnalExplorer() {
               rhythmPayload={rhythmPayload}
               rhythmError={rhythmError}
               labelCluster={labelCluster}
+            />
+          ) : null}
+
+          {activeTab === 'rostral_caudal' ? (
+            <RostralCaudalPanel
+              metadata={metadata}
+              currentGene={gene}
+              rcGeneInput={rcGeneInput}
+              setRcGeneInput={setRcGeneInput}
+              rcGene={rcGene}
+              setRcGene={setRcGene}
+              rcGeneOptions={rcGeneOptions}
+              rcCluster={rcCluster}
+              setRcCluster={setRcCluster}
+              rcPayload={rcPayload}
+              rcError={rcError}
+              rcDownloadUrl={rcDownloadUrl}
             />
           ) : null}
 
