@@ -4,7 +4,7 @@
 
 This web application accompanies **Gelber, Romero et al., bioRxiv 2026** and provides an interactive interface for exploring 24-hour rhythmic transcription across cortical and subcortical mouse brain regions.
 
-**Live app:** https://brainome.ucsd.edu/agelber/MouseBrainRhythmST4/  
+**Live app:** https://brainome.ucsd.edu/MouseBrainRhythmST/  
 **Preprint:** https://www.biorxiv.org/content/10.64898/2026.01.26.701799v1  
 **External raw data browser:** https://viewers.karospace.se/viewers/gse282203-combined-binary-sidecar.html
 
