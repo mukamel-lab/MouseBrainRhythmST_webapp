@@ -40,7 +40,7 @@ h1 { margin: 0; font-size: 1.65rem; font-weight: 650; }
 .layout.full-width-layout { grid-template-columns: minmax(0, 1fr); }
 .controls, .content { background: var(--panel); border: 1px solid var(--border); border-radius: .75rem; box-shadow: 0 1px 2px rgba(15, 23, 42, .04); }
 .controls { padding: 1rem; align-self: start; position: sticky; top: 1rem; max-height: calc(100vh - 2rem); overflow: auto; }
-.content { min-width: 0; padding: 1rem; }
+.content { min-width: 0; padding: 1rem; max-width: 1400px; margin-left: auto; margin-right: auto; }
 .single-panel .content, .loading-card { margin: 1rem; }
 .control-label, .fieldset legend { display: block; margin-bottom: .35rem; font-size: .9rem; font-weight: 700; }
 .text-input { width: 100%; border: 1px solid var(--border); border-radius: .4rem; background: #fff; color: #17212b; padding: .55rem .65rem; }
@@ -65,7 +65,7 @@ h1 { margin: 0; font-size: 1.65rem; font-weight: 650; }
 .tab-panel { display: block; }
 .loading { padding: 1rem; border: 1px dashed var(--border); border-radius: .5rem; color: var(--muted); background: #fafbfc; }
 .error-banner { margin: 0 0 1rem; padding: .85rem 1rem; border: 1px solid var(--error); border-radius: .5rem; background: #fff1f1; color: #781b22; white-space: pre-wrap; }
-.plot-img { display: block; width: 100%; max-width: 100%; min-height: 500px; height: auto; margin: 0 auto; border: 1px solid var(--border); border-radius: .5rem; background: #fff; object-fit: contain; }
+.plot-img { display: block; width: 100%; max-width: 1000px; min-height: 500px; height: auto; margin: 0 auto; border: 1px solid var(--border); border-radius: .5rem; background: #fff; object-fit: contain; }
 .methods-note { font-size: .83rem; color: #555; margin: .8rem 0 1rem; line-height: 1.5; }
 .download-button { display: inline-block; padding: .55rem .8rem; border-radius: .4rem; text-decoration: none; }
 

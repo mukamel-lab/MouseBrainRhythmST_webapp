@@ -397,13 +397,15 @@ function diurnal_plot_svg(string $gene, array $filters, string $colorBy, array $
     // panel, normal-sized text, and a compact legend below the axis. The
     // previous PHP SVG used the same overall dimensions but left too much
     // whitespace around a small panel, which made the plot look undersized.
-    $outerLeft = 16;
-    $outerRight = 16;
-    $top = 52;
-    $panelGapX = 18;
-    $panelGapY = 30;
+    $outerLeft = 20;
+    $outerRight = 14;
+    $top = 48;
+    $panelGapX = 8;
+    $panelGapY = 10;
+    $plotLeftInset = 14;
+
     $panelWidth = (int) floor(($width - $outerLeft - $outerRight - ($columns - 1) * $panelGapX) / max(1, $columns));
-    $panelHeight = $facetCount === 1 ? 430 : 350;
+    $panelHeight = $facetCount === 1 ? 410 : 320;
     $legendHeight = max(78, count($colors) * 26 + 50);
     $height = $top + $rowsCount * $panelHeight + max(0, $rowsCount - 1) * $panelGapY + $legendHeight + 48;
 
@@ -418,10 +420,10 @@ function diurnal_plot_svg(string $gene, array $filters, string $colorBy, array $
         $panelX = $outerLeft + $col * ($panelWidth + $panelGapX);
         $panelY = $top + $rowIndex * ($panelHeight + $panelGapY);
         $hasFacetLabel = $facets[$facetKey] !== '';
-        $plotX = $panelX + 58;
-        $plotY = $panelY + ($hasFacetLabel ? 34 : 10);
-        $plotW = $panelWidth - 70;
-        $plotH = $panelHeight - ($hasFacetLabel ? 92 : 66);
+        $plotX = $panelX + $plotLeftInset;
+        $plotY = $panelY + ($hasFacetLabel ? 28 : 8);
+        $plotW = $panelWidth - (2 * $plotLeftInset) - 8;
+        $plotH = $panelHeight - ($hasFacetLabel ? 82 : 56);
         $svg[] = '<clipPath id="clip' . $index . '"><rect x="' . $plotX . '" y="' . $plotY . '" width="' . $plotW . '" height="' . $plotH . '"/></clipPath>';
     }
     $svg[] = '</defs>';
@@ -432,10 +434,10 @@ function diurnal_plot_svg(string $gene, array $filters, string $colorBy, array $
         $panelX = $outerLeft + $col * ($panelWidth + $panelGapX);
         $panelY = $top + $rowIndex * ($panelHeight + $panelGapY);
         $hasFacetLabel = $facets[$facetKey] !== '';
-        $plotX = $panelX + 58;
-        $plotY = $panelY + ($hasFacetLabel ? 34 : 10);
-        $plotW = $panelWidth - 70;
-        $plotH = $panelHeight - ($hasFacetLabel ? 92 : 66);
+        $plotX = $panelX + $plotLeftInset;
+        $plotY = $panelY + ($hasFacetLabel ? 28 : 8);
+        $plotW = $panelWidth - (2 * $plotLeftInset) - 8;
+        $plotH = $panelHeight - ($hasFacetLabel ? 82 : 56);
         $xScale = function (float $x) use ($plotX, $plotW): float { return $plotX + (($x + 3.0) / 48.0) * $plotW; };
         $yScale = function (float $y) use ($plotY, $plotH, $yMin, $yMax): float { return $plotY + $plotH - (($y - $yMin) / ($yMax - $yMin)) * $plotH; };
 
@@ -499,8 +501,8 @@ function diurnal_plot_svg(string $gene, array $filters, string $colorBy, array $
     }
 
     $plotBottom = $top + $rowsCount * $panelHeight + max(0, $rowsCount - 1) * $panelGapY;
-    $svg[] = '<text x="' . ($width / 2) . '" y="' . ($plotBottom + 24) . '" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#111827">Zeitgeber time (h) (double plotted)</text>';
-    $svg[] = '<text x="18" y="' . ($top + ($plotBottom - $top) / 2) . '" transform="rotate(-90 18 ' . ($top + ($plotBottom - $top) / 2) . ')" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#111827">Normalized mRNA expression (log2 CPM)</text>';
+    $svg[] = '<text x="' . ($width / 2) . '" y="' . ($plotBottom + 18) . '" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#111827">Zeitgeber time (h) (double plotted)</text>';
+    $svg[] = '<text x="14" y="' . ($top + ($plotBottom - $top) / 2) . '" transform="rotate(-90 14 ' . ($top + ($plotBottom - $top) / 2) . ')" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#111827">Normalized mRNA expression (log2 CPM)</text>';
 
     $legendY = $plotBottom + 52;
     $svg[] = '<text x="' . $outerLeft . '" y="' . ($legendY + 5) . '" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#334155">' . xml_escape(diurnal_variable_label($colorBy)) . '</text>';
