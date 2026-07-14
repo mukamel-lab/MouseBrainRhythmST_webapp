@@ -4,7 +4,7 @@
  *
  * The app remains PHP + SQLite. PHP extracts small, plot-specific TSV payloads
  * and either sends them to a resident local R worker or falls back to a one-shot
- * Rscript call. ggplot2 + ggh4x + svglite are loaded by the R worker once.
+ * Rscript call. ggplot2 + ggh4x are loaded by the R worker once; SVGs are produced with grDevices::svg to match the original R app.
  */
 
 declare(strict_types=1);
@@ -232,7 +232,20 @@ function rplot_run_script(string $scriptName, array $args, string $cacheKey): st
     if (is_file($cacheFile) && filesize($cacheFile) > 100) return (string) file_get_contents($cacheFile);
 
     $timeout = max(5, min(180, (int) (app_config()['r_plot_timeout_seconds'] ?? 45)));
-    if (rplot_worker_available()) return rplot_run_script_with_worker($scriptName, $args, $cacheFile, $timeout);
+    if (rplot_worker_available()) {
+        try {
+            return rplot_run_script_with_worker($scriptName, $args, $cacheFile, $timeout);
+        } catch (ApiException $e) {
+            // A live worker should normally be faster, but a stale/broken worker should
+            // not break plotting. Fall back to the one-shot Rscript path and include the
+            // worker error only if that path also fails.
+            try {
+                return rplot_run_script_direct($scriptName, $args, $cacheFile, $timeout);
+            } catch (ApiException $direct) {
+                throw new ApiException($direct->getMessage(), 500, 'Worker error: ' . (string) ($e->details ?? $e->getMessage()) . "\nDirect Rscript error: " . (string) ($direct->details ?? $direct->getMessage()));
+            }
+        }
+    }
     return rplot_run_script_direct($scriptName, $args, $cacheFile, $timeout);
 }
 
@@ -315,9 +328,12 @@ function diurnal_plot_ggplot_svg(string $gene, array $filters, string $colorBy, 
             }
             $facetCount = max(1, count($seen));
         }
-        $widthIn = max(4.0, min(6.2, $width / 120.0));
-        $heightIn = $facetCount > 1 ? max(3.4, $widthIn * 0.82) : max(3.1, $widthIn * 0.74);
-        $cacheKey = 'diurnal-ggplot-' . md5(json_encode(array('gene' => $resolved['gene'], 'filters' => $filters, 'color_by' => $colorBy, 'split_by' => $splitBy, 'width' => $width, 'db_mtime' => @filemtime(database_filename('diurnal')), 'rplot_mtime' => @filemtime(__FILE__), 'core_mtime' => @filemtime(rplot_script_path('ggplot_render_core.R')))));
+        // Match the original R/httpuv app device size: render at 7 x 5 inches
+        // and let the browser/CSS scale the SVG display size. This preserves the
+        // ggplot text/layout proportions from the original app.
+        $widthIn = 7.0;
+        $heightIn = 5.0;
+        $cacheKey = 'diurnal-ggplot-grdevices-' . md5(json_encode(array('gene' => $resolved['gene'], 'filters' => $filters, 'color_by' => $colorBy, 'split_by' => $splitBy, 'width' => $width, 'device_width' => $widthIn, 'device_height' => $heightIn, 'db_mtime' => @filemtime(database_filename('diurnal')), 'rplot_mtime' => @filemtime(__FILE__), 'core_mtime' => @filemtime(rplot_script_path('ggplot_render_core.R')))));
 
         return rplot_run_script('render_diurnal_ggplot.R', array(
             'obs' => $obsPath, 'pred' => $predPath, 'colors' => $colorsPath, 'out' => $outPath,

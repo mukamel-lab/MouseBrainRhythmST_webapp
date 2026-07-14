@@ -52,7 +52,6 @@ ensure_runtime_ggplot_packages()
 
 worker_log <- function(...) {
   msg <- paste0(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), " ", paste(..., collapse = " "), "\n")
-  cat(msg)
   cat(msg, file = log_file, append = TRUE)
 }
 
@@ -78,8 +77,16 @@ process_job <- function(job_path) {
     write_text(done_file, "ok\n")
     ok <<- TRUE
   }, error = function(e) {
-    err <<- conditionMessage(e)
-    write_text(error_file, paste0(err, "\n"))
+    err_msg <- conditionMessage(e)
+    if (!nzchar(err_msg)) err_msg <- paste(class(e), collapse = "/")
+    err <<- err_msg
+    detail <- paste0(
+      err_msg, "\n",
+      "classes: ", paste(class(e), collapse = ", "), "\n",
+      "call: ", paste(deparse(conditionCall(e)), collapse = " "), "\n",
+      "session:\n", paste(utils::capture.output(utils::sessionInfo()), collapse = "\n"), "\n"
+    )
+    write_text(error_file, detail)
   })
   unlink(running_path)
   if (ok) worker_log("done", basename(running_path)) else worker_log("error", basename(running_path), err)

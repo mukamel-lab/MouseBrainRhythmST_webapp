@@ -1,4 +1,5 @@
-# Shared ggplot2/ggh4x/svglite renderers for Brainome plot endpoints.
+# Shared ggplot2/ggh4x renderers for Brainome plot endpoints.
+# Uses grDevices::svg() to match the original R/httpuv app plots.
 # Sourced by one-shot render scripts and the resident local R worker.
 
 `%||%` <- function(x, y) {
@@ -20,7 +21,7 @@ parse_cli_args <- function(args) {
 
 ensure_runtime_ggplot_packages <- function() {
   missing <- c()
-  for (pkg in c("ggplot2", "ggh4x", "svglite")) {
+  for (pkg in c("ggplot2", "ggh4x")) {
     if (!requireNamespace(pkg, quietly = TRUE)) missing <- c(missing, pkg)
   }
   if (length(missing)) {
@@ -30,10 +31,17 @@ ensure_runtime_ggplot_packages <- function() {
 }
 
 open_svg_device <- function(filename, width, height, pointsize = 12) {
-  # Use svglite rather than grDevices::svg. On shared/headless servers the base
-  # SVG device can fail with "unable to start device 'svg'" when cairo support is
-  # unavailable. svglite is the robust device for ggplot SVG output.
-  svglite::svglite(file = filename, width = width, height = height, bg = "white", pointsize = pointsize)
+  # Match the original R/httpuv app: base grDevices::svg() plus the ggplot theme
+  # using ArialMT. This avoids svglite font/layout differences and reproduces
+  # the original app plots as closely as possible.
+  grDevices::svg(
+    filename = filename,
+    width = width,
+    height = height,
+    pointsize = pointsize,
+    bg = "white",
+    family = "ArialMT"
+  )
 }
 
 print_svg <- function(plot, out_path, width, height, pointsize = 12) {
@@ -74,23 +82,17 @@ stable_jitter <- function(value, amplitude = 0.18) {
   out
 }
 
-plot_theme <- function(base_size = 8) {
-  # Use a generic sans family and plain text faces to avoid browser/system font
-  # fallbacks that made the svglite output appear overly italicized on Brainome.
-  ggplot2::theme_bw(base_size = base_size, base_family = "sans") +
+plot_theme <- function(base_size = 12) {
+  # Exact styling used by the original R/httpuv app's ggplot renderer.
+  ggplot2::theme_bw(base_size = base_size) +
     ggplot2::theme(
-      text = ggplot2::element_text(face = "plain", family = "sans"),
-      panel.grid.minor = ggplot2::element_blank(),
-      axis.text.x = ggplot2::element_text(angle = 0, hjust = 0.5, face = "plain"),
-      axis.text.y = ggplot2::element_text(face = "plain"),
-      axis.title.x = ggplot2::element_text(face = "plain"),
-      axis.title.y = ggplot2::element_text(face = "plain"),
-      legend.position = "bottom",
-      legend.title = ggplot2::element_text(size = base_size, face = "plain"),
-      legend.text = ggplot2::element_text(size = base_size, face = "plain"),
-      plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = base_size + 3),
-      strip.background = ggplot2::element_blank(),
-      strip.text = ggplot2::element_text(face = "plain")
+      strip.background = ggplot2::element_rect(fill = "white", color = "black", linetype = "blank"),
+      strip.text.y.right = ggplot2::element_text(family = "ArialMT", color = "black", size = 12, angle = 270),
+      strip.text.x = ggplot2::element_text(family = "ArialMT", color = "black", size = 12),
+      axis.title = ggplot2::element_text(family = "ArialMT", color = "black", size = 10),
+      plot.title = ggplot2::element_text(family = "ArialMT", color = "black", size = 12, hjust = 0.5, face = "bold.italic"),
+      plot.caption = ggplot2::element_text(family = "ArialMT", color = "#666666", size = 9, hjust = 0),
+      legend.position = "bottom"
     )
 }
 
@@ -147,9 +149,9 @@ render_diurnal_ggplot <- function(args) {
     ggplot2::geom_jitter(
       data = obs,
       ggplot2::aes_string("ZT", "norm_expr", color = "color_label"),
-      size = 0.7,
-      alpha = 0.28,
-      width = 0.28,
+      size = 0.9,
+      alpha = 0.35,
+      width = 0.35,
       height = 0
     ) +
     ggplot2::stat_summary(
@@ -157,26 +159,24 @@ render_diurnal_ggplot <- function(args) {
       ggplot2::aes_string("ZT", "norm_expr", color = "color_label"),
       fun.data = mean_sdl_1,
       geom = "errorbar",
-      width = 0.32,
-      linewidth = 0.25
+      width = 0.5
     ) +
     ggplot2::stat_summary(
       data = obs,
       ggplot2::aes_string("ZT", "norm_expr", color = "color_label"),
       fun = mean,
       geom = "point",
-      size = 1.5
+      size = 2.0
     ) +
     ggplot2::geom_line(
       data = pred,
       ggplot2::aes_string("ZT", "pred_expr", color = "color_label"),
-      linewidth = 0.55
+      linewidth = 0.75
     ) +
     ggplot2::scale_x_continuous(breaks = c(0, 12, 24, 36), labels = c("0", "12", "0", "12")) +
     ggplot2::scale_color_manual(values = cols, drop = FALSE) +
     ggplot2::labs(x = x_label, y = y_label, title = plot_gene, color = color_name) +
-    plot_theme(base_size = 8) +
-    ggplot2::theme(axis.title.y = ggplot2::element_text(face = "plain"))
+    plot_theme(base_size = 12)
 
   if (length(split_by) == 1) {
     p <- p + ggh4x::facet_nested(stats::as.formula(paste("~", split_by[1])))
@@ -184,7 +184,7 @@ render_diurnal_ggplot <- function(args) {
     p <- p + ggh4x::facet_nested(stats::as.formula(paste(split_by[1], "~", paste(split_by[-1], collapse = " + "))))
   }
 
-  print_svg(p, out_path, width, height, pointsize = 10)
+  print_svg(p, out_path, width, height, pointsize = 12)
   invisible(out_path)
 }
 
@@ -230,7 +230,7 @@ render_dv_ggplot <- function(args) {
     p <- p + ggh4x::facet_wrap2(~facet_label, scales = "free_y")
   }
 
-  print_svg(p, out_path, width, height, pointsize = 10)
+  print_svg(p, out_path, width, height, pointsize = 12)
   invisible(out_path)
 }
 
@@ -290,9 +290,8 @@ render_rostral_caudal_ggplot <- function(args) {
     ggplot2::scale_x_continuous(breaks = c(0, 12, 24, 36), labels = c("0", "12", "0", "12")) +
     ggplot2::scale_color_manual(values = color_values, drop = FALSE, name = "Cortical position") +
     ggplot2::labs(x = "Zeitgeber Time (double plotted)", y = plot_gene, title = plot_gene, subtitle = subtitle) +
-    plot_theme(base_size = 8) +
-    ggplot2::theme(axis.title.y = ggplot2::element_text(face = "plain"))
+    plot_theme(base_size = 12)
 
-  print_svg(p, out_path, width, height, pointsize = 10)
+  print_svg(p, out_path, width, height, pointsize = 12)
   invisible(out_path)
 }
