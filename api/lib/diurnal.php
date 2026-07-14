@@ -580,23 +580,26 @@ function spatial_colored_svg(array $valuesByCluster, float $min, float $max, flo
 
 function spatial_legend_svg(float $min, float $max, float $gamma): string
 {
-    $width = 500;
-    $height = 70;
-    $x0 = 170;
-    $x1 = $width - 20;
+    $width = 720;
+    $height = 118;
+    $x0 = 300;
+    $x1 = $width - 28;
+    $barY = 38;
+    $barH = 30;
     $stops = array();
     for ($i = 0; $i <= 40; $i++) {
         $u = $i / 40;
         $stops[] = '<stop offset="' . round(100 * $u, 2) . '%" stop-color="' . interpolate_hex('#d3d3d3', '#0000ff', pow($u, $gamma)) . '"/>';
     }
-    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 70">'
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 118" role="img" aria-label="Spatial mean color scale">'
         . '<defs><linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">' . implode('', $stops) . '</linearGradient></defs>'
-        . '<text x="10" y="38" font-family="Arial, sans-serif" font-size="12">log2(normalized counts)</text>'
-        . '<rect x="' . $x0 . '" y="22" width="' . ($x1 - $x0) . '" height="20" fill="url(#grad)" stroke="black"/>'
-        . '<text x="' . $x0 . '" y="60" font-family="Arial, sans-serif" font-size="12">' . xml_escape(svg_numeric_label($min)) . '</text>'
-        . '<text x="' . $x1 . '" y="60" text-anchor="end" font-family="Arial, sans-serif" font-size="12">' . xml_escape(svg_numeric_label($max)) . '</text>'
+        . '<text x="24" y="58" font-family="Arial, sans-serif" font-size="24">log2(normalized counts)</text>'
+        . '<rect x="' . $x0 . '" y="' . $barY . '" width="' . ($x1 - $x0) . '" height="' . $barH . '" fill="url(#grad)" stroke="black" stroke-width="1.4"/>'
+        . '<text x="' . $x0 . '" y="98" font-family="Arial, sans-serif" font-size="22">' . xml_escape(svg_numeric_label($min)) . '</text>'
+        . '<text x="' . $x1 . '" y="98" text-anchor="end" font-family="Arial, sans-serif" font-size="22">' . xml_escape(svg_numeric_label($max)) . '</text>'
         . '</svg>';
 }
+
 
 function diurnal_spatial_payload(string $gene, float $gamma): array
 {
