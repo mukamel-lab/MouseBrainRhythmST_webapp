@@ -1282,8 +1282,8 @@ export default function DiurnalExplorer() {
     split_by: splitBy,
   }), [gene, includeRegion, includeAge, includeSex, includeGenotype, colorBy, splitBy]);
 
-  const plotSvgUrl = useMemo(() => apiUrl('/plot.svg', { ...plotParams, width: 760, _: refreshToken }), [plotParams, refreshToken]);
-  const plotDownloadUrl = useMemo(() => apiUrl('/plot.svg', { ...plotParams, width: 980, download: 1 }), [plotParams]);
+  const plotSvgUrl = useMemo(() => apiUrl('/plot.svg', { ...plotParams, width: 520, _: refreshToken }), [plotParams, refreshToken]);
+  const plotDownloadUrl = useMemo(() => apiUrl('/plot.svg', { ...plotParams, width: 760, download: 1 }), [plotParams]);
   const hipPlotUrl = useMemo(() => apiUrl('/hippocampus-dv/plot.svg', {
     gene: hipGene,
     cluster: hipCluster,

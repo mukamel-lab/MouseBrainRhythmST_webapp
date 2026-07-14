@@ -13,6 +13,7 @@ require_once __DIR__ . '/lib/supplemental.php';
 require_once __DIR__ . '/lib/dv.php';
 require_once __DIR__ . '/lib/rostral_caudal.php';
 require_once __DIR__ . '/lib/allen.php';
+require_once __DIR__ . '/lib/rplots.php';
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
     http_response_code(204);
@@ -81,7 +82,7 @@ try {
         $gene = request_string('gene', isset($settings['default_gene']) ? (string) $settings['default_gene'] : 'Dbp');
         $colorBy = request_string('color_by', 'region');
         $splitBy = request_csv('split_by', array());
-        $svg = diurnal_plot_svg($gene, $filters, $colorBy, $splitBy, request_int('width', 520, 420, 1800));
+        $svg = diurnal_plot_ggplot_svg($gene, $filters, $colorBy, $splitBy, request_int('width', 520, 420, 1800));
         $headers = array('Cache-Control' => 'public, max-age=' . (int) app_config()['plot_cache_seconds']);
         if (request_string('download', '') !== '') {
             $headers['Content-Disposition'] = 'attachment; filename="circadian_' . preg_replace('/[^A-Za-z0-9._-]+/', '_', $gene) . '.svg"';

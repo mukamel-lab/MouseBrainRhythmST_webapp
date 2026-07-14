@@ -1,3 +1,7 @@
 data-private/
 private_dir/
 BrainRhythmSTT_data.tgz
+cache/rplots/
+R-library/
+.Renviron
+scripts/.Renviron
