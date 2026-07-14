@@ -75,15 +75,22 @@ stable_jitter <- function(value, amplitude = 0.18) {
 }
 
 plot_theme <- function(base_size = 8) {
-  ggplot2::theme_bw(base_size = base_size, base_family = "Arial") +
+  # Use a generic sans family and plain text faces to avoid browser/system font
+  # fallbacks that made the svglite output appear overly italicized on Brainome.
+  ggplot2::theme_bw(base_size = base_size, base_family = "sans") +
     ggplot2::theme(
+      text = ggplot2::element_text(face = "plain", family = "sans"),
       panel.grid.minor = ggplot2::element_blank(),
-      axis.text.x = ggplot2::element_text(angle = 0, hjust = 0.5),
+      axis.text.x = ggplot2::element_text(angle = 0, hjust = 0.5, face = "plain"),
+      axis.text.y = ggplot2::element_text(face = "plain"),
+      axis.title.x = ggplot2::element_text(face = "plain"),
+      axis.title.y = ggplot2::element_text(face = "plain"),
       legend.position = "bottom",
-      legend.title = ggplot2::element_text(size = base_size),
-      legend.text = ggplot2::element_text(size = base_size),
-      plot.title = ggplot2::element_text(hjust = 0.5, face = "bold.italic", size = base_size + 3),
-      strip.background = ggplot2::element_blank()
+      legend.title = ggplot2::element_text(size = base_size, face = "plain"),
+      legend.text = ggplot2::element_text(size = base_size, face = "plain"),
+      plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = base_size + 3),
+      strip.background = ggplot2::element_blank(),
+      strip.text = ggplot2::element_text(face = "plain")
     )
 }
 
@@ -169,7 +176,7 @@ render_diurnal_ggplot <- function(args) {
     ggplot2::scale_color_manual(values = cols, drop = FALSE) +
     ggplot2::labs(x = x_label, y = y_label, title = plot_gene, color = color_name) +
     plot_theme(base_size = 8) +
-    ggplot2::theme(axis.title.y = ggplot2::element_text(face = "italic"))
+    ggplot2::theme(axis.title.y = ggplot2::element_text(face = "plain"))
 
   if (length(split_by) == 1) {
     p <- p + ggh4x::facet_nested(stats::as.formula(paste("~", split_by[1])))
@@ -284,7 +291,7 @@ render_rostral_caudal_ggplot <- function(args) {
     ggplot2::scale_color_manual(values = color_values, drop = FALSE, name = "Cortical position") +
     ggplot2::labs(x = "Zeitgeber Time (double plotted)", y = plot_gene, title = plot_gene, subtitle = subtitle) +
     plot_theme(base_size = 8) +
-    ggplot2::theme(axis.title.y = ggplot2::element_text(face = "italic"))
+    ggplot2::theme(axis.title.y = ggplot2::element_text(face = "plain"))
 
   print_svg(p, out_path, width, height, pointsize = 10)
   invisible(out_path)
