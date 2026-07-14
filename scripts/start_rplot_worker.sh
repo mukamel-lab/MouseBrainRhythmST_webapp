@@ -1,34 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
-APP_ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
+APP_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CACHE_DIR="$APP_ROOT/cache/rplots"
-mkdir -p "$CACHE_DIR/jobs" "$CACHE_DIR/tmp"
-chmod 755 "$APP_ROOT/cache" 2>/dev/null || true
-chmod 1777 "$CACHE_DIR" "$CACHE_DIR/jobs" "$CACHE_DIR/tmp" 2>/dev/null || true
+TMP_DIR="$CACHE_DIR/tmp"
+JOBS_DIR="$CACHE_DIR/jobs"
 PID_FILE="$CACHE_DIR/worker.pid"
-HEARTBEAT="$CACHE_DIR/worker.heartbeat"
 LOG_FILE="$CACHE_DIR/worker.log"
-
-if [[ -s "$PID_FILE" ]]; then
-  OLD_PID="$(cat "$PID_FILE" 2>/dev/null || true)"
-  if [[ -n "$OLD_PID" ]] && kill -0 "$OLD_PID" 2>/dev/null; then
-    echo "R plot worker already running: PID $OLD_PID"
-    exit 0
-  fi
+mkdir -p "$TMP_DIR" "$JOBS_DIR"
+chmod 1777 "$CACHE_DIR" "$TMP_DIR" "$JOBS_DIR" 2>/dev/null || true
+if [[ -s "$PID_FILE" ]] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
+  echo "R plot worker already running: PID $(cat "$PID_FILE")"
+  exit 0
 fi
-
-export R_LIBS_USER="${R_LIBS_USER:-$APP_ROOT/R-library}"
-export TMPDIR="$CACHE_DIR/tmp"
+export R_LIBS_USER="$APP_ROOT/R-library"
+export TMPDIR="$TMP_DIR"
 export HOME="$APP_ROOT"
 nohup Rscript "$APP_ROOT/scripts/rplot_worker.R" --app-root="$APP_ROOT" >> "$LOG_FILE" 2>&1 &
-PID=$!
-echo "$PID" > "$PID_FILE"
-sleep 1
-if kill -0 "$PID" 2>/dev/null; then
-  echo "Started R plot worker: PID $PID"
-  echo "Log: $LOG_FILE"
-else
-  echo "R plot worker failed to start. Last log lines:" >&2
-  tail -40 "$LOG_FILE" >&2 || true
-  exit 1
-fi
+echo $! > "$PID_FILE"
+echo "Started R plot worker: PID $(cat "$PID_FILE")"

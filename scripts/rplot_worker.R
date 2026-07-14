@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 
 `%||%` <- function(x, y) {
-  if (is.null(x) || length(x) == 0 || is.na(x) || identical(x, "")) y else x
+  if (is.null(x) || length(x) == 0 || anyNA(x) || identical(x, "")) y else x
 }
 
 parse_args <- function(args) {
@@ -34,6 +34,9 @@ args <- parse_args(commandArgs(trailingOnly = TRUE))
 app_root <- normalizePath(args$`app-root` %||% getwd(), mustWork = FALSE)
 setwd(app_root)
 
+app_lib <- file.path(app_root, "R-library")
+if (dir.exists(app_lib)) .libPaths(c(app_lib, .libPaths()))
+
 cache_dir <- file.path(app_root, "cache", "rplots")
 jobs_dir <- file.path(cache_dir, "jobs")
 tmp_dir <- file.path(cache_dir, "tmp")
@@ -42,16 +45,22 @@ log_file <- file.path(cache_dir, "worker.log")
 
 dir.create(jobs_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(tmp_dir, recursive = TRUE, showWarnings = FALSE)
-Sys.setenv(TMPDIR = tmp_dir)
+Sys.setenv(TMPDIR = tmp_dir, HOME = app_root)
 
-core_path <- file.path(app_root, "scripts", "diurnal_ggplot_core.R")
-source(core_path)
-ensure_diurnal_ggplot_packages()
+source(file.path(app_root, "scripts", "ggplot_render_core.R"))
+ensure_runtime_ggplot_packages()
 
 worker_log <- function(...) {
   msg <- paste0(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), " ", paste(..., collapse = " "), "\n")
   cat(msg)
   cat(msg, file = log_file, append = TRUE)
+}
+
+render_dispatch <- function(script, job) {
+  if (identical(script, "render_diurnal_ggplot.R")) return(render_diurnal_ggplot(job))
+  if (identical(script, "render_dv_ggplot.R")) return(render_dv_ggplot(job))
+  if (identical(script, "render_rostral_caudal_ggplot.R")) return(render_rostral_caudal_ggplot(job))
+  stop("Unsupported worker script: ", script, call. = FALSE)
 }
 
 process_job <- function(job_path) {
@@ -65,10 +74,7 @@ process_job <- function(job_path) {
   ok <- FALSE
   err <- NULL
   tryCatch({
-    if (!identical(script, "render_diurnal_ggplot.R")) {
-      stop("Unsupported worker script: ", script, call. = FALSE)
-    }
-    render_diurnal_ggplot(job)
+    render_dispatch(script, job)
     write_text(done_file, "ok\n")
     ok <<- TRUE
   }, error = function(e) {

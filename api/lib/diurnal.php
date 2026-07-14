@@ -108,6 +108,9 @@ function diurnal_base_metadata(): array
         ),
         'labels' => array(
             'region' => dimension_label_map($dims['region']),
+            'age' => dimension_label_map($dims['age']),
+            'sex' => array_replace(dimension_label_map($dims['sex']), array('F' => 'Female', 'M' => 'Male')),
+            'genotype' => dimension_label_map($dims['genotype']),
             'variables' => array('region' => 'Region', 'age' => 'Age', 'sex' => 'Sex', 'genotype' => 'Genotype'),
         ),
         'constraints' => array(
@@ -242,7 +245,14 @@ function diurnal_variable_label(string $variable): string
 
 function diurnal_row_label(array $row, string $variable): string
 {
-    return trim((string) ($row[$variable] ?? ''));
+    $labelKey = $variable . '_label';
+    $value = trim((string) ($row[$labelKey] ?? $row[$variable] ?? ''));
+    if ($variable === 'sex') {
+        $normalized = strtoupper(trim((string) ($row[$variable] ?? $value)));
+        if ($normalized === 'F' || strcasecmp($value, 'F') === 0) return 'Female';
+        if ($normalized === 'M' || strcasecmp($value, 'M') === 0) return 'Male';
+    }
+    return $value;
 }
 
 function diurnal_row_color(array $row, string $variable): string

@@ -12,8 +12,8 @@ require_once __DIR__ . '/lib/diurnal.php';
 require_once __DIR__ . '/lib/supplemental.php';
 require_once __DIR__ . '/lib/dv.php';
 require_once __DIR__ . '/lib/rostral_caudal.php';
-require_once __DIR__ . '/lib/allen.php';
 require_once __DIR__ . '/lib/rplots.php';
+require_once __DIR__ . '/lib/allen.php';
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
     http_response_code(204);
@@ -82,7 +82,7 @@ try {
         $gene = request_string('gene', isset($settings['default_gene']) ? (string) $settings['default_gene'] : 'Dbp');
         $colorBy = request_string('color_by', 'region');
         $splitBy = request_csv('split_by', array());
-        $svg = diurnal_plot_ggplot_svg($gene, $filters, $colorBy, $splitBy, request_int('width', 520, 420, 1800));
+        $svg = diurnal_plot_ggplot_svg($gene, $filters, $colorBy, $splitBy, request_int('width', 520, 360, 1800));
         $headers = array('Cache-Control' => 'public, max-age=' . (int) app_config()['plot_cache_seconds']);
         if (request_string('download', '') !== '') {
             $headers['Content-Disposition'] = 'attachment; filename="circadian_' . preg_replace('/[^A-Za-z0-9._-]+/', '_', $gene) . '.svg"';
@@ -165,7 +165,7 @@ try {
 
     if ($route === 'hippocampus-dv/plot.svg') {
         $gene = request_string('gene', 'Lct');
-        $svg = dv_plot_svg($gene, request_string('cluster', 'all'), request_string('split_by', 'none'), request_int('width', 780, 520, 1500));
+        $svg = dv_plot_ggplot_svg($gene, request_string('cluster', 'all'), request_string('split_by', 'none'), request_int('width', 780, 420, 1500));
         $headers = array('Cache-Control' => 'public, max-age=' . (int) app_config()['plot_cache_seconds']);
         if (request_string('download', '') !== '') {
             $headers['Content-Disposition'] = 'attachment; filename="dorsal_ventral_' . preg_replace('/[^A-Za-z0-9._-]+/', '_', $gene) . '.svg"';
@@ -196,7 +196,7 @@ try {
 
     if ($route === 'rostral-caudal/plot.svg') {
         $gene = request_string('gene', 'Dbp');
-        $svg = rc_plot_svg($gene, request_string('cluster', 'L23'), request_int('width', 860, 600, 1800));
+        $svg = rc_plot_ggplot_svg($gene, request_string('cluster', 'L23'), request_int('width', 760, 420, 1800));
         $headers = array('Cache-Control' => 'public, max-age=' . (int) app_config()['plot_cache_seconds']);
         if (request_string('download', '') !== '') {
             $headers['Content-Disposition'] = 'attachment; filename="rostral_caudal_' . preg_replace('/[^A-Za-z0-9._-]+/', '_', $gene) . '.svg"';

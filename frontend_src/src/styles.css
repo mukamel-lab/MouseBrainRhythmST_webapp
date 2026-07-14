@@ -75,8 +75,8 @@ h1 { margin: 0; font-size: 1.65rem; font-weight: 650; }
 .spatial-svg { height: 250px; max-height: 360px; width: 100%; overflow: hidden; }
 .spatial-svg.empty { display: grid; place-items: center; color: var(--muted); border: 1px dashed var(--border); border-radius: .5rem; }
 .spatial-svg svg { width: 100% !important; height: 100% !important; max-width: 100% !important; max-height: 100% !important; display: block; }
-.spatial-legend { margin-top: 1rem; overflow-x: auto; }
-.spatial-legend svg { max-width: 100%; }
+.spatial-legend { margin-top: 1rem; overflow-x: auto; text-align: center; }
+.spatial-legend svg { width: 15% !important; max-width: 150px !important; min-width: 96px; height: auto !important; }
 
 @media (max-width: 960px) {
   .layout { grid-template-columns: 1fr; }
@@ -386,7 +386,7 @@ body { background: linear-gradient(180deg, #f4f8fc 0%, #f7f9fb 42%, #eef4fa 100%
 }
 
 .rc-plot-frame { max-width: 840px; margin: 0 auto; border: 1px solid var(--border); border-radius: .65rem; background: #fff; overflow: hidden; }
-.rc-react-plot { display: block; width: 100%; height: auto; background: #fff; }
+.rc-react-plot, .rc-plot-img { display: block; width: 100%; height: auto; background: #fff; }
 .rc-plot-title { font-family: Arial, sans-serif; font-size: 22px; font-weight: 700; font-style: italic; fill: #111827; }
 .rc-plot-subtitle, .rc-axis-text, .rc-axis-label, .rc-legend-title, .rc-legend-text { font-family: Arial, sans-serif; fill: #334155; }
 .rc-plot-subtitle { font-size: 13px; fill: #475569; }

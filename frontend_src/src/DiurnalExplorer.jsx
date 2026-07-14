@@ -992,6 +992,7 @@ function RostralCaudalPanel({
   setRcCluster,
   rcPayload,
   rcError,
+  rcPlotUrl,
   rcDownloadUrl,
 }) {
   const rcMeta = metadata?.rostral_caudal || {};
@@ -1058,7 +1059,9 @@ function RostralCaudalPanel({
       ) : null}
       {rcPayload && rcPayload.found ? (
         <>
-          <RostralCaudalReactPlot payload={rcPayload} />
+          <div className="rc-plot-frame">
+            <img className="rc-plot-img" src={rcPlotUrl} alt={`Rostral-caudal rhythmicity plot for ${rcPayload.gene}`} />
+          </div>
           <div className="result-summary compact-summary">
             <div>
               <h2>{rcPayload.gene}</h2>
@@ -1288,11 +1291,19 @@ export default function DiurnalExplorer() {
     gene: hipGene,
     cluster: hipCluster,
     split_by: hipSplitBy,
+    width: 780,
     _: refreshToken,
   }), [hipGene, hipCluster, hipSplitBy, refreshToken]);
+  const rcPlotUrl = useMemo(() => apiUrl('/rostral-caudal/plot.svg', {
+    gene: rcGene,
+    cluster: rcCluster,
+    width: 760,
+    _: refreshToken,
+  }), [rcGene, rcCluster, refreshToken]);
   const rcDownloadUrl = useMemo(() => apiUrl('/rostral-caudal/plot.svg', {
     gene: rcGene,
     cluster: rcCluster,
+    width: 760,
     download: 1,
   }), [rcGene, rcCluster]);
 
@@ -1556,7 +1567,7 @@ export default function DiurnalExplorer() {
             <>
               <MultiSelect label="Include Regions" options={choices.region} value={includeRegion} onChange={setIncludeRegion} size={8} optionLabel={labelCluster} />
               <MultiSelect label="Include Ages" options={choices.age} value={includeAge} onChange={setIncludeAge} size={3} />
-              <MultiSelect label="Include Sexes" options={choices.sex} value={includeSex} onChange={setIncludeSex} size={3} />
+              <MultiSelect label="Include Sexes" options={choices.sex} value={includeSex} onChange={setIncludeSex} size={3} optionLabel={(option) => optionLabel(metadata, 'sex', option)} />
               <MultiSelect label="Include Genotypes" options={choices.genotype} value={includeGenotype} onChange={setIncludeGenotype} size={3} optionLabel={(option) => optionLabel(metadata, 'genotype', option)} />
 
               <hr />
@@ -1650,6 +1661,7 @@ export default function DiurnalExplorer() {
               setRcCluster={setRcCluster}
               rcPayload={rcPayload}
               rcError={rcError}
+              rcPlotUrl={rcPlotUrl}
               rcDownloadUrl={rcDownloadUrl}
             />
           ) : null}
