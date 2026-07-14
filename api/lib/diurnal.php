@@ -397,15 +397,15 @@ function diurnal_plot_svg(string $gene, array $filters, string $colorBy, array $
     // panel, normal-sized text, and a compact legend below the axis. The
     // previous PHP SVG used the same overall dimensions but left too much
     // whitespace around a small panel, which made the plot look undersized.
-    $outerLeft = 20;
-    $outerRight = 14;
+    $outerLeft = 40;
+    $outerRight = 2;
     $top = 48;
-    $panelGapX = 8;
-    $panelGapY = 10;
-    $plotLeftInset = 14;
+    $panelGapX = -50;
+    $panelGapY = -40;
+    $plotLeftInset = 30;
 
     $panelWidth = (int) floor(($width - $outerLeft - $outerRight - ($columns - 1) * $panelGapX) / max(1, $columns));
-    $panelHeight = $facetCount === 1 ? 410 : 320;
+    $panelHeight = $facetCount === 1 ? 410 : 280;
     $legendHeight = max(78, count($colors) * 26 + 50);
     $height = $top + $rowsCount * $panelHeight + max(0, $rowsCount - 1) * $panelGapY + $legendHeight + 48;
 
@@ -492,17 +492,20 @@ function diurnal_plot_svg(string $gene, array $filters, string $colorBy, array $
         $svg[] = '</g>';
 
         $svg[] = '<rect x="' . $plotX . '" y="' . $plotY . '" width="' . $plotW . '" height="' . $plotH . '" fill="none" stroke="#475569" stroke-width="1"/>';
-        $xTicks = array(array(0, '0'), array(12, '12'), array(24, '0'), array(36, '12'));
-        foreach ($xTicks as $tick) {
-            $x = $xScale((float) $tick[0]);
-            $svg[] = '<line x1="' . round($x, 2) . '" y1="' . ($plotY + $plotH) . '" x2="' . round($x, 2) . '" y2="' . ($plotY + $plotH + 4) . '" stroke="#475569"/>';
-            $svg[] = '<text x="' . round($x, 2) . '" y="' . ($plotY + $plotH + 17) . '" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#475569">' . $tick[1] . '</text>';
+        $showBottomRowTicks = $rowsCount > 1 && $rowIndex === $rowsCount - 1;
+        if ($showBottomRowTicks) {
+            $xTicks = array(array(0, '0'), array(12, '12'), array(24, '0'), array(36, '12'));
+            foreach ($xTicks as $tick) {
+                $x = $xScale((float) $tick[0]);
+                $svg[] = '<line x1="' . round($x, 2) . '" y1="' . ($plotY + $plotH) . '" x2="' . round($x, 2) . '" y2="' . ($plotY + $plotH + 4) . '" stroke="#475569"/>';
+                $svg[] = '<text x="' . round($x, 2) . '" y="' . ($plotY + $plotH + 17) . '" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#475569">' . $tick[1] . '</text>';
+            }
         }
     }
 
     $plotBottom = $top + $rowsCount * $panelHeight + max(0, $rowsCount - 1) * $panelGapY;
     $svg[] = '<text x="' . ($width / 2) . '" y="' . ($plotBottom + 18) . '" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#111827">Zeitgeber time (h) (double plotted)</text>';
-    $svg[] = '<text x="14" y="' . ($top + ($plotBottom - $top) / 2) . '" transform="rotate(-90 14 ' . ($top + ($plotBottom - $top) / 2) . ')" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#111827">Normalized mRNA expression (log2 CPM)</text>';
+    $svg[] = '<text x="14" y="' . ($top + ($plotBottom - $top) / 2) . '" transform="rotate(-90 22 ' . ($top + ($plotBottom - $top) / 2) . ')" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#111827">Normalized mRNA expression (log2 CPM)</text>';
 
     $legendY = $plotBottom + 52;
     $svg[] = '<text x="' . $outerLeft . '" y="' . ($legendY + 5) . '" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#334155">' . xml_escape(diurnal_variable_label($colorBy)) . '</text>';
@@ -510,7 +513,7 @@ function diurnal_plot_svg(string $gene, array $filters, string $colorBy, array $
     $legendRow = 0;
     foreach ($colors as $entry) {
         $x = $legendX;
-        $y = $legendY + $legendRow * 26;
+        $y = $legendY + $legendRow * 18;
         $svg[] = '<line x1="' . $x . '" y1="' . $y . '" x2="' . ($x + 18) . '" y2="' . $y . '" stroke="' . xml_escape($entry['color']) . '" stroke-width="3"/>';
         $svg[] = '<text x="' . ($x + 24) . '" y="' . ($y + 4) . '" font-family="Arial, sans-serif" font-size="13" fill="#334155">' . xml_escape($entry['label']) . '</text>';
         $legendRow++;
