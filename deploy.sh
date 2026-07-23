@@ -1,10 +1,13 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Run npm and deploy
+ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+cd "$ROOT/frontend_src"
 
-cd frontend_src
 npm ci --prefer-offline
+npm test
 npm run lint
 npm run build
-cp ../dist/index.html ..
-rsync -a --delete ../dist/assets/ ../assets/
+
+cp "$ROOT/dist/index.html" "$ROOT/index.html"
+rsync -a --delete "$ROOT/dist/assets/" "$ROOT/assets/"

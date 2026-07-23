@@ -74,24 +74,16 @@ try {
         json_response(diurnal_gene_resolve($query, request_int('limit', 25, 1, 100)));
     }
 
-    if ($route === 'plot.svg') {
+    if ($route === 'plot-data') {
         $pdo = open_database('diurnal');
         list($settings, $dims) = diurnal_filter_config($pdo);
         $filters = diurnal_filtered_values($dims, $settings);
         $gene = request_string('gene', isset($settings['default_gene']) ? (string) $settings['default_gene'] : 'Dbp');
-        $colorBy = request_string('color_by', 'region');
-        $splitBy = request_csv('split_by', array());
-        $svg = diurnal_plot_svg($gene, $filters, $colorBy, $splitBy, request_int('width', 520, 420, 1800));
-        $headers = array('Cache-Control' => 'public, max-age=' . (int) app_config()['plot_cache_seconds']);
-        if (request_string('download', '') !== '') {
-            $headers['Content-Disposition'] = 'attachment; filename="circadian_' . preg_replace('/[^A-Za-z0-9._-]+/', '_', $gene) . '.svg"';
-        }
-        text_response($svg, 'image/svg+xml; charset=utf-8', 200, $headers);
-    }
-
-    if ($route === 'plot.pdf') {
-        // Kept for old bookmarks; the PHP deployment exports SVG instead of invoking an R PDF device.
-        throw new ApiException('PDF generation is not available on the PHP deployment. Use Download SVG.', 501);
+        $colorBy = request_string('color_by', isset($settings['default_color_by']) ? (string) $settings['default_color_by'] : 'region');
+        $splitBy = array_key_exists('split_by', $_GET)
+            ? request_csv('split_by', array())
+            : array();
+        json_response(diurnal_plot_payload($pdo, $gene, $filters, $colorBy, $splitBy, $dims, $settings));
     }
 
     if ($route === 'spatial') {
@@ -191,16 +183,6 @@ try {
 
     if ($route === 'rostral-caudal') {
         json_response(rc_payload(request_string('gene', 'Dbp'), request_string('cluster', 'L23')));
-    }
-
-    if ($route === 'rostral-caudal/plot.svg') {
-        $gene = request_string('gene', 'Dbp');
-        $svg = rc_plot_svg($gene, request_string('cluster', 'L23'), request_int('width', 860, 600, 1800));
-        $headers = array('Cache-Control' => 'public, max-age=' . (int) app_config()['plot_cache_seconds']);
-        if (request_string('download', '') !== '') {
-            $headers['Content-Disposition'] = 'attachment; filename="rostral_caudal_' . preg_replace('/[^A-Za-z0-9._-]+/', '_', $gene) . '.svg"';
-        }
-        text_response($svg, 'image/svg+xml; charset=utf-8', 200, $headers);
     }
 
     if ($route === 'allen/ish') {

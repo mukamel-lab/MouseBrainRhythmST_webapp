@@ -52,6 +52,15 @@ h1 { margin: 0; font-size: 1.65rem; font-weight: 650; }
 .fieldset { border: 1px solid var(--border); border-radius: .5rem; padding: .7rem; margin: .9rem 0; }
 .checkbox-list { display: grid; gap: .4rem; }
 .checkbox-list label { display: flex; align-items: center; gap: .45rem; font-size: .92rem; }
+.split-order-list { display: grid; gap: .35rem; margin-top: .7rem; padding-top: .65rem; border-top: 1px solid var(--border); }
+.split-order-row { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr) auto; gap: .4rem; align-items: center; }
+.split-order-position { color: var(--muted); font-size: .7rem; font-weight: 750; text-transform: uppercase; letter-spacing: .02em; }
+.split-order-label { min-width: 0; font-size: .86rem; font-weight: 700; overflow-wrap: anywhere; }
+.split-order-buttons { display: inline-flex; gap: .2rem; }
+.split-order-buttons button { min-width: 1.8rem; padding: .15rem .35rem; font-size: .82rem; line-height: 1.2; }
+.split-formula { margin: .65rem 0 0; color: #334155; font-size: .75rem; overflow-wrap: anywhere; }
+.split-formula code { display: block; padding: .35rem .45rem; border-radius: .35rem; background: #f4f6f8; }
+.split-help { margin: .45rem 0 0; color: var(--muted); font-size: .73rem; line-height: 1.35; }
 #gamma { width: 100%; }
 .gamma-value { font-weight: 600; color: var(--accent-dark); }
 .action-row { display: flex; gap: .5rem; margin-top: 1rem; }
@@ -65,7 +74,20 @@ h1 { margin: 0; font-size: 1.65rem; font-weight: 650; }
 .tab-panel { display: block; }
 .loading { padding: 1rem; border: 1px dashed var(--border); border-radius: .5rem; color: var(--muted); background: #fafbfc; }
 .error-banner { margin: 0 0 1rem; padding: .85rem 1rem; border: 1px solid var(--error); border-radius: .5rem; background: #fff1f1; color: #781b22; white-space: pre-wrap; }
-.plot-img { display: block; width: 100%; min-height: 500px; height: auto; margin: 0 auto; border: 1px solid var(--border); border-radius: .5rem; background: #fff; object-fit: contain; }
+.rhythmicity-plot-scroller {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid var(--border);
+  border-radius: .65rem;
+  background: #fff;
+}
+.rhythmicity-svg {
+  display: block;
+  max-width: none;
+  margin: 0 auto;
+  background: #fff;
+}
 .methods-note { font-size: .83rem; color: #555; margin: .8rem 0 1rem; line-height: 1.5; }
 .download-button { display: inline-block; padding: .55rem .8rem; border-radius: .4rem; text-decoration: none; }
 
@@ -385,16 +407,20 @@ body { background: linear-gradient(180deg, #f4f8fc 0%, #f7f9fb 42%, #eef4fa 100%
   text-decoration: underline;
 }
 
-.rc-plot-frame { max-width: 840px; margin: 0 auto; border: 1px solid var(--border); border-radius: .65rem; background: #fff; overflow: hidden; }
-.rc-react-plot { display: block; width: 100%; height: auto; background: #fff; }
-.rc-plot-title { font-family: Arial, sans-serif; font-size: 22px; font-weight: 700; font-style: italic; fill: #111827; }
-.rc-plot-subtitle, .rc-axis-text, .rc-axis-label, .rc-legend-title, .rc-legend-text { font-family: Arial, sans-serif; fill: #334155; }
-.rc-plot-subtitle { font-size: 13px; fill: #475569; }
-.rc-axis-text { font-size: 13px; fill: #475569; }
-.rc-axis-label { font-size: 16px; fill: #111827; }
-.rc-y-label { font-style: normal; }
-.rc-grid-line { stroke: #e5e7eb; stroke-width: 1; }
-.rc-axis-box { stroke: #475569; stroke-width: 1.2; }
-.rc-axis-tick { stroke: #475569; stroke-width: 1.2; }
-.rc-legend-title { font-size: 14px; font-weight: 700; }
-.rc-legend-text { font-size: 13px; }
+.rc-plot-frame {
+  width: 100%;
+  max-width: 756px;
+  margin: 0 auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: #fff;
+}
+
+.rostral-caudal-svg {
+  display: block;
+  width: 100%;
+  min-width: 600px;
+  max-width: 756px;
+  height: auto;
+  background: #fff;
+}

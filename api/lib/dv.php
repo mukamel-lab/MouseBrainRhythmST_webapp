@@ -254,9 +254,9 @@ function dv_plot_svg(string $gene, string $cluster, string $splitBy, int $width 
     foreach ($summary as $item) {
         $mean = $item['sum'] / max(1, $item['n']);
         $variance = $item['n'] > 1 ? max(0.0, ($item['sumsq'] - $item['sum'] * $item['sum'] / $item['n']) / ($item['n'] - 1)) : 0.0;
-        $sem = $item['n'] > 1 ? sqrt($variance) / sqrt($item['n']) : 0.0;
+        $sd = $item['n'] > 1 ? sqrt($variance) : 0.0;
         $item['mean'] = $mean;
-        $item['sem'] = $sem;
+        $item['sd'] = $sd;
         $statsByFacet[$item['facet']][$item['region']] = $item;
     }
 
@@ -272,10 +272,10 @@ function dv_plot_svg(string $gene, string $cluster, string $splitBy, int $width 
     $panelHeight = 300;
     $height = $top + $rowsCount * $panelHeight + max(0, $rowsCount - 1) * $gapY + 72;
     $svg = array();
-    $svg[] = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' . $width . ' ' . $height . '" role="img" aria-label="Dorsal and ventral hippocampus expression for ' . xml_escape($resolved['gene']) . '">';
+    $svg[] = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' . $width . ' ' . $height . '" role="img" font-family="Arial, sans-serif" aria-label="Dorsal and ventral hippocampus expression for ' . xml_escape($resolved['gene']) . '">';
     $svg[] = '<rect width="100%" height="100%" fill="white"/>';
-    $svg[] = '<text x="' . ($width / 2) . '" y="26" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" font-style="italic" fill="#111827">' . xml_escape($resolved['gene']) . '</text>';
-    $svg[] = '<text x="' . ($width / 2) . '" y="44" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#64748b">WT only; all ages and sexes included; display split: ' . xml_escape(dv_split_label($splitBy)) . '</text>';
+    $svg[] = '<text x="' . ($width / 2) . '" y="28" text-anchor="middle" font-family="Arial, sans-serif" font-size="26" font-weight="700" font-style="italic" fill="#111827">' . xml_escape($resolved['gene']) . '</text>';
+    $svg[] = '<text x="' . ($width / 2) . '" y="50" text-anchor="middle" font-family="Arial, sans-serif" font-size="19" fill="#64748b">WT only; all ages and sexes included; display split: ' . xml_escape(dv_split_label($splitBy)) . '</text>';
 
     foreach ($facetKeys as $index => $facetKey) {
         $col = $index % $columns;
@@ -288,12 +288,12 @@ function dv_plot_svg(string $gene, string $cluster, string $splitBy, int $width 
         $plotH = $panelHeight - 76;
         if ($facets[$facetKey] !== '') {
             $svg[] = '<rect x="' . $panelX . '" y="' . $panelY . '" width="' . $panelWidth . '" height="24" fill="#f8fafc" stroke="#cbd5e1"/>';
-            $svg[] = '<text x="' . ($panelX + $panelWidth / 2) . '" y="' . ($panelY + 16) . '" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#334155">' . xml_escape($facets[$facetKey]) . '</text>';
+            $svg[] = '<text x="' . ($panelX + $panelWidth / 2) . '" y="' . ($panelY + 18) . '" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="600" fill="#334155">' . xml_escape($facets[$facetKey]) . '</text>';
         }
         $values = array_map(function ($point) { return $point['value']; }, $pointsByFacet[$facetKey]);
         foreach ($statsByFacet[$facetKey] ?? array() as $stat) {
-            $values[] = $stat['mean'] + $stat['sem'];
-            $values[] = $stat['mean'] - $stat['sem'];
+            $values[] = $stat['mean'] + $stat['sd'];
+            $values[] = $stat['mean'] - $stat['sd'];
         }
         $rawMin = min($values);
         $rawMax = max($values);
@@ -307,7 +307,7 @@ function dv_plot_svg(string $gene, string $cluster, string $splitBy, int $width 
         foreach ($ticks as $tick) {
             $y = $yScale((float) $tick);
             $svg[] = '<line x1="' . $plotX . '" y1="' . round($y, 2) . '" x2="' . ($plotX + $plotW) . '" y2="' . round($y, 2) . '" stroke="#e5e7eb"/>';
-            $svg[] = '<text x="' . ($plotX - 6) . '" y="' . round($y + 4, 2) . '" text-anchor="end" font-family="Arial, sans-serif" font-size="9" fill="#475569">' . xml_escape(svg_numeric_label((float) $tick)) . '</text>';
+            $svg[] = '<text x="' . ($plotX - 9) . '" y="' . round($y + 6, 2) . '" text-anchor="end" font-family="Arial, sans-serif" font-size="18" fill="#475569">' . xml_escape(svg_numeric_label((float) $tick)) . '</text>';
         }
 
         foreach (array('Dorsal', 'Ventral') as $region) {
@@ -319,8 +319,8 @@ function dv_plot_svg(string $gene, string $cluster, string $splitBy, int $width 
                 $barTop = min($zeroY, $meanY);
                 $barHeight = max(1.0, abs($zeroY - $meanY));
                 $svg[] = '<rect x="' . round($x - 28, 2) . '" y="' . round($barTop, 2) . '" width="56" height="' . round($barHeight, 2) . '" fill="#d9e2ec" fill-opacity="0.9" stroke="#2f3a45"/>';
-                $lowY = $yScale((float) ($stat['mean'] - $stat['sem']));
-                $highY = $yScale((float) ($stat['mean'] + $stat['sem']));
+                $lowY = $yScale((float) ($stat['mean'] - $stat['sd']));
+                $highY = $yScale((float) ($stat['mean'] + $stat['sd']));
                 $svg[] = '<line x1="' . $x . '" y1="' . round($lowY, 2) . '" x2="' . $x . '" y2="' . round($highY, 2) . '" stroke="#2f3a45" stroke-width="1.2"/>';
                 $svg[] = '<line x1="' . ($x - 7) . '" y1="' . round($lowY, 2) . '" x2="' . ($x + 7) . '" y2="' . round($lowY, 2) . '" stroke="#2f3a45"/>';
                 $svg[] = '<line x1="' . ($x - 7) . '" y1="' . round($highY, 2) . '" x2="' . ($x + 7) . '" y2="' . round($highY, 2) . '" stroke="#2f3a45"/>';
@@ -333,12 +333,12 @@ function dv_plot_svg(string $gene, string $cluster, string $splitBy, int $width 
         }
         $svg[] = '<rect x="' . $plotX . '" y="' . $plotY . '" width="' . $plotW . '" height="' . $plotH . '" fill="none" stroke="#475569"/>';
         foreach ($xCenters as $region => $x) {
-            $svg[] = '<text x="' . $x . '" y="' . ($plotY + $plotH + 18) . '" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#334155">' . $region . '</text>';
+            $svg[] = '<text x="' . $x . '" y="' . ($plotY + $plotH + 23) . '" text-anchor="middle" font-family="Arial, sans-serif" font-size="21" font-weight="600" fill="#334155">' . $region . '</text>';
         }
     }
     $plotBottom = $top + $rowsCount * $panelHeight + max(0, $rowsCount - 1) * $gapY;
-    $svg[] = '<text x="18" y="' . ($top + ($plotBottom - $top) / 2) . '" transform="rotate(-90 18 ' . ($top + ($plotBottom - $top) / 2) . ')" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#111827">log2(normalized counts)</text>';
-    $svg[] = '<text x="' . $left . '" y="' . ($height - 24) . '" font-family="Arial, sans-serif" font-size="10" fill="#64748b">Bars show mean ± SEM; points are WT sample-level observations.</text>';
+    $svg[] = '<text x="68" y="' . ($top + ($plotBottom - $top) / 2) . '" transform="rotate(-90 68 ' . ($top + ($plotBottom - $top) / 2) . ')" text-anchor="middle" font-family="Arial, sans-serif" font-size="19" font-weight="600" fill="#111827">log2 Normalized mRNA Expression</text>';
+    $svg[] = '<text x="' . $left . '" y="' . ($height - 24) . '" font-family="Arial, sans-serif" font-size="18" fill="#64748b">Bars show mean ± SD; points are WT sample-level observations.</text>';
     $svg[] = '</svg>';
     return implode('', $svg);
 }

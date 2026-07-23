@@ -45,6 +45,10 @@ export async function fetchJson(path, params = {}, signal) {
   return response.json();
 }
 
+export async function fetchDiurnalPlot(params, signal) {
+  return fetchJson('/plot-data', params, signal);
+}
+
 export async function fetchGenes(query, signal, limit = 80) {
   const payload = await fetchJson('/genes', { q: query ?? '', limit }, signal);
   return asArray(payload.genes ?? payload);

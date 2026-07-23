@@ -63,11 +63,27 @@ assert health['backend'] == 'PHP/SQLite'
 
 metadata = get_json('/api/index.php?route=metadata')
 assert metadata['defaults']['gene'] == 'Dbp'
+assert metadata['defaults']['include_region'] == ['L23']
+assert metadata['defaults']['include_age'] == ['7 months', '14 months']
+assert metadata['defaults']['include_sex'] == ['F', 'M']
+assert metadata['defaults']['include_genotype'] == ['NTG']
+assert metadata['defaults']['color_by'] == 'region'
+assert metadata['defaults']['split_by'] == []
 assert metadata['hippocampus_dv']['default_gene'] == 'Lct'
 assert metadata['hippocampus_dv']['split_by_default'] == 'none'
 assert metadata['rostral_caudal']['available'] is True
 assert metadata['rostral_caudal']['default_gene'] == 'Dbp'
 assert metadata['rostral_caudal']['default_cluster'] == 'L23'
+
+default_plot = get_json('/api/index.php?route=plot-data&gene=Dbp')
+assert default_plot['filters'] == {
+    'region': ['L23'],
+    'age': ['7 months', '14 months'],
+    'sex': ['F', 'M'],
+    'genotype': ['NTG'],
+}
+assert default_plot['colorBy'] == 'region'
+assert default_plot['splitBy'] == []
 
 genes = get_json('/api/index.php?route=genes&q=Db')
 assert 'Dbp' in genes['genes']
@@ -89,22 +105,42 @@ assert dv['split_by_label'] == 'Combined'
 spatial = get_json('/api/index.php?route=spatial&gene=Dbp')
 assert spatial['panels'] and 'log2(normalized counts)' in spatial['legend']
 
+plot = get_json('/api/index.php?route=plot-data&gene=Dbp&include_region=L23,DGsg&color_by=genotype&split_by=age,sex,region')
+assert plot['gene'] == 'Dbp'
+assert plot['colorBy'] == 'genotype'
+assert plot['splitBy'] == ['age', 'sex', 'region']
+assert plot['counts']['observations'] == 96
+assert plot['counts']['coefficients'] == 16
+assert len(plot['observations']) == 96
+assert len(plot['coefficients']) == 16
+assert [entry['label'] for entry in plot['dimensions']['sex']] == ['Female', 'Male']
+assert [entry['value'] for entry in plot['dimensions']['genotype'][:2]] == ['APP23', 'NTG']
+assert [entry['color'] for entry in plot['dimensions']['genotype'][:2]] == ['#BC3C29', '#0072B5']
+assert plot['axisLabels']['x'] == 'Zeitgeber Time (double plotted)'
+assert all({'sampleKey', 'ZT', 'normExpr', 'region', 'age', 'sex', 'genotype'} <= row.keys() for row in plot['observations'])
+
 
 rc_genes = get_json('/api/index.php?route=rostral-caudal/genes&q=Db')
 assert 'Dbp' in rc_genes['genes']
 
 rc = get_json('/api/index.php?route=rostral-caudal&gene=Dbp&cluster=L23')
 assert rc['found'] and rc['cluster'] == 'L23'
-
-status, ctype, body = get('/api/index.php?route=rostral-caudal/plot.svg&gene=Dbp&cluster=L23')
-assert status == 200 and ctype == 'image/svg+xml', (status, ctype)
-text = body.decode('utf-8')
-assert 'Rostral' in text and 'Intermediate' in text and 'Caudal' in text
-assert 'Medial' not in text
-(tmp / 'rostral_caudal.svg').write_bytes(body)
+assert rc['subtitle'] == 'Cortex Layer 2/3'
+assert rc['plot']['x_label'] == 'Zeitgeber Time (double plotted)'
+assert rc['plot']['y_label'] == 'Dbp'
+assert rc['plot']['legend_title'] == ''
+assert [region['label'] for region in rc['plot']['regions']] == ['Rostral', 'Intermediate', 'Caudal']
+assert rc['point_count'] == 72
+assert rc['plotted_point_count'] == 132
+assert rc['summary_count'] == 33
+assert rc['model_count'] == 3
+assert max(point['x'] for point in rc['plot']['points']) == 40
+assert any(point['x'] >= 24 for point in rc['plot']['points'])
+assert all({'region', 'x', 'y', 'sample_key', 'jitter_key'} <= point.keys() for point in rc['plot']['points'])
+assert len(rc['plot']['curves']) == 3
+assert all(len(curve['points']) == 160 for curve in rc['plot']['curves'])
 
 for path, outfile, phrase in [
-    ('/api/index.php?route=plot.svg&gene=Dbp&include_region=L23', 'diurnal.svg', 'Zeitgeber Time (double plotted)'),
     ('/api/index.php?route=hippocampus-dv/plot.svg&gene=Lct&cluster=DGsg&split_by=none', 'dv.svg', 'log2(normalized counts)'),
 ]:
     status, ctype, body = get(path)

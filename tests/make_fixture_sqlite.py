@@ -21,7 +21,8 @@ def build_diurnal(path: Path):
     path.unlink(missing_ok=True)
     con = sqlite3.connect(path)
     kv_tables(con, {
-        "default_gene": "Dbp", "default_cluster": "L23", "default_genotype": "NTG",
+        "default_gene": "Dbp", "default_cluster": "L23",
+        "default_genotype": "NTG", "default_color_by": "region",
         "x_axis_label": "Zeitgeber Time (double plotted)",
         "y_axis_label": "log2 Normalized mRNA Expression",
         "spatial_legend_label": "log2(normalized counts)",

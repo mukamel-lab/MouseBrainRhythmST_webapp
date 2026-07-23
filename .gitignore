@@ -1,3 +1,7 @@
 data-private/
 private_dir/
 BrainRhythmSTT_data.tgz
+frontend_src/node_modules/
+dist/
+*.tar.gz
+*.zip

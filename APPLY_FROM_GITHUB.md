@@ -1,92 +1,80 @@
-# Applying this full updated app to the GitHub clone
+# Apply this replacement tree to a Git clone
 
-This package is a complete no-data application tree for the Brainome PHP/SQLite deployment. It includes the current frontend, PHP API, Allen Brain Atlas cache support, the Rostral-Caudal Rhythmicity tab, and the rostral-caudal SQLite exporter.
+This archive contains the complete public app tree with both the React hierarchical rhythmicity renderer and the ggplot-matched rostral-caudal renderer integrated. It is intended to replace the tracked app files rather than be copied in as a partial patch.
 
-It does **not** include unpublished SQLite data. Keep/copy these files separately:
+The archive does **not** include private SQLite databases, local deployment configuration, or generated Allen image caches.
 
-```text
-data-private/diurnal.sqlite
-data-private/dorsal_ventral.sqlite
-data-private/supplemental.sqlite
-data-private/rostral_caudal.sqlite
-```
-
-## Apply to a local Git clone
+## 1. Extract the archive
 
 ```bash
-cd /path/to/MouseBrainRhythmST_webapp
+tar -xzf MouseBrainRhythmST_webapp-react-rhythmicity-rostral-caudal-update.tar.gz
+```
 
-git pull
-git status
+## 2. Replace the tracked files in the clone
 
-git checkout -b add-latest-functionality-rostral-caudal-aba-caching
+From the root of your Git clone:
 
-# From inside the clone, copy the full app contents over the clone.
-# Replace /path/to/extracted/MouseBrainRhythmST_webapp_full_updated with the extracted package path.
+```bash
 rsync -a --delete \
   --exclude='.git/' \
-  --exclude='data-private/*.sqlite' \
+  --exclude='data-private/' \
+  --exclude='private_dir/' \
   --exclude='cache/allen/' \
   --exclude='cache/allen-images/' \
-  /path/to/extracted/MouseBrainRhythmST_webapp_full_updated/ \
+  --exclude='api/config.local.php' \
+  /path/to/MouseBrainRhythmST_webapp-react-rhythmicity-rostral-caudal/ \
   ./
+```
 
-git status
+The `--delete` flag removes tracked files that are no longer part of the app, including the superseded main diurnal and rostral-caudal PHP SVG-rendering implementations. The exclusions preserve private data and deployment-specific state.
+
+## 3. Build and validate
+
+```bash
+./deploy.sh
+```
+
+The deployment script runs:
+
+```text
+npm ci
+npm test
+npm run lint
+npm run build
+```
+
+It then copies the Vite build output into the public root `index.html` and `assets/` directory.
+
+## 4. Review before committing
+
+```bash
+git status --short
 git diff --stat
-
-git add .
-git commit -m "add latest functionality, rostral-caudal rhyth + ABA caching"
-git push -u origin add-latest-functionality-rostral-caudal-aba-caching
+git diff
 ```
 
-If you want to update `main` directly after reviewing:
+Then commit the replacement normally.
 
-```bash
-git checkout main
-git merge add-latest-functionality-rostral-caudal-aba-caching
-git push origin main
-```
+## Runtime requirements
 
-## Run the new rostral-caudal export
+- PHP with PDO SQLite enabled.
+- The existing private SQLite files in `data-private/`, or a deployment-specific database directory configured through `api/config.local.php`.
+- Node.js/npm only when rebuilding the frontend.
 
-On the analysis machine:
+## Browser plot architecture
 
-```bash
-cd /home/agelber/desp1/precast/precast_final_with_ros_caud/analysis2
+### Main rhythmicity plot
 
-Rscript /path/to/MouseBrainRhythmST_webapp/export/export_rostral_caudal_sqlite.R \
-  --output-dir=/home/agelber/desp1/precast/precast_final_with_ros_caud/analysis2/new_data_output2 \
-  --overwrite
-```
+- `api/index.php?route=plot-data` returns observations, sinusoidal coefficients, dimensions, labels, and colors as JSON.
+- `frontend_src/src/plot/RhythmicityPlot.jsx` renders the browser SVG.
+- `frontend_src/src/plot/facetLayout.js` implements the ordered hierarchical facet layout.
+- The former main diurnal `/plot.svg` and `/plot.pdf` routes are not retained.
 
-Copy the output:
+### Rostral-caudal plot
 
-```text
-/home/agelber/desp1/precast/precast_final_with_ros_caud/analysis2/new_data_output2/rostral_caudal.sqlite
-```
+- `api/index.php?route=rostral-caudal` returns regions, double-plotted observations, mean/SD summaries, and fitted curves as JSON.
+- `frontend_src/src/plot/RostralCaudalPlot.jsx` renders the ggplot-matched SVG.
+- `frontend_src/src/plot/rostralCaudalTheme.js` contains the physical R-device dimensions and geometry sizes.
+- The former `/rostral-caudal/plot.svg` route and `rc_plot_svg()` implementation are not retained.
 
-to the deployed app as:
-
-```text
-data-private/rostral_caudal.sqlite
-```
-
-Do not overwrite `diurnal.sqlite` for this tab.
-
-## Brainome smoke tests
-
-```bash
-BASE='https://brainome.ucsd.edu/agelber/MouseBrainRhythmST4'
-
-curl -fsS "$BASE/api/index.php?route=health"
-curl -fsS "$BASE/api/index.php?route=rostral-caudal/metadata"
-curl -fsS "$BASE/api/index.php?route=rostral-caudal/genes&q=Db"
-curl -fsS "$BASE/api/index.php?route=rostral-caudal&gene=Dbp&cluster=L23"
-curl -fsS "$BASE/api/index.php?route=rostral-caudal/plot.svg&gene=Dbp&cluster=L23" -o /tmp/rc_dbp.svg
-```
-
-Then open the app with a cache-busting query string:
-
-```text
-https://brainome.ucsd.edu/agelber/MouseBrainRhythmST4/?v=rc-final
-```
+Both displayed SVGs are serialized in the browser for their **Download SVG** actions. The separate dorsal/ventral hippocampus view still uses its existing SVG endpoint.

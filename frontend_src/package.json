@@ -1,12 +1,13 @@
 {
   "name": "diurnal-transcriptome-frontend",
   "private": true,
-  "version": "2.3.0",
+  "version": "2.5.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
+    "test": "node --test src/__tests__/*.test.js",
     "preview": "vite preview"
   },
   "dependencies": {

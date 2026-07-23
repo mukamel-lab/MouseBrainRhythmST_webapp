@@ -18,7 +18,7 @@ Using large-scale spatial transcriptomics, this study maps 24-hour rhythmic tran
 
 ### Diurnal expression
 
-Search a gene and visualize its 24-hour expression profile across brain regions, genotype, age, sex, and Zeitgeber Time. Plots are double-plotted to make rhythmic patterns easier to inspect.
+Search a gene and visualize its 24-hour expression profile across brain regions, genotype, age, sex, and Zeitgeber Time. Plots are double-plotted to make rhythmic patterns easier to inspect. The browser renderer includes individual observations, mean ± 1 SD summaries, fitted sinusoidal curves, ggplot-like axes and legends, and ordered nested facet strips analogous to `ggh4x::facet_nested()`.
 
 ### Spatial mean expression
 
@@ -34,7 +34,7 @@ Explore WT dorsal-vs-ventral hippocampal expression results. The panel reports d
 
 ### Rostral-caudal rhythmicity
 
-Explore rostral, intermediate, and caudal cortical rhythmicity profiles across cortical layers.
+Explore rostral, intermediate, and caudal cortical rhythmicity profiles across cortical layers. The browser-rendered SVG follows the supplied R/ggplot2 renderer: a 6.3 × 4.2 aspect ratio, `theme_bw(base_size = 12)`, double-plotted light/dark intervals, region-colored fitted curves, mean ± 1 SD summaries, small jittered observations, a gene-labelled y axis, the cortical layer as the subtitle, and an untitled bottom legend.
 
 ### Raw data browser
 
@@ -64,6 +64,10 @@ Preprint: https://www.biorxiv.org/content/10.64898/2026.01.26.701799v1
 The app displays precomputed results from spatial transcriptomic analysis of mouse brain sections sampled across the diurnal cycle. Gene expression values are shown as log2-normalized counts. Rhythmicity and differential-rhythmicity results are derived from statistical models described in the accompanying manuscript and supplementary tables.
 
 Runtime visualization uses precomputed read-only data files served through the public web application. Statistical modeling, normalization, rhythmicity testing, and differential-expression analyses are performed offline in R; the web interface is intended for interactive exploration and visualization of those results.
+
+For the main diurnal view, PHP exposes observations, fitted-model coefficients, dimension labels, and palettes through the JSON `plot-data` route. React renders the final SVG in the browser. The order of the selected split variables controls the facet formula: with multiple variables, the first creates rows and the remaining variables create nested column strips from outer to inner. The default is equivalent to `age ~ sex + region`, with genotype used for color.
+
+For the rostral-caudal view, `api/index.php?route=rostral-caudal` returns ordered cortical-position metadata, double-plotted observations, mean/SD summaries, and fitted curves. `frontend_src/src/plot/RostralCaudalPlot.jsx` renders the final SVG and serializes that same SVG for download. The former PHP rostral-caudal SVG route is not retained.
 
 ## Repository contents
 
