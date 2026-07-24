@@ -12,13 +12,13 @@ This web application accompanies **Gelber, Romero et al., bioRxiv 2026** and pro
 
 Diurnal rhythms in brain transcription align neural, immune, and metabolic processes with the light-dark cycle and are profoundly disrupted in Alzheimer’s disease. However, the regional organization of diurnal transcription in the healthy and diseased brain remains poorly defined.
 
-Using large-scale spatial transcriptomics, this study maps 24-hour rhythmic transcription across cortical and subcortical regions of the mouse brain. The app allows users to explore gene-level diurnal expression, spatial expression patterns, rhythmicity statistics, dorsal–ventral hippocampal differences, rostral–caudal cortical rhythms, and matched Allen Brain Atlas in situ hybridization images.
+Using large-scale spatial transcriptomics, this study maps 24-hour rhythmic transcription across cortical and subcortical regions of the mouse brain. The app allows users to explore gene-level diurnal expression, spatial expression patterns, rhythmicity statistics, APP23–NTG differential expression, dorsal–ventral hippocampal differences, rostral–caudal cortical rhythms, and matched Allen Brain Atlas in situ hybridization images.
 
 ## What you can explore
 
 ### Diurnal expression
 
-Search a gene and visualize its 24-hour expression profile across brain regions, genotype, age, sex, and Zeitgeber Time. Plots are double-plotted to make rhythmic patterns easier to inspect. The browser renderer includes individual observations, mean ± 1 SD summaries, fitted sinusoidal curves, ggplot-like axes and legends, and ordered nested facet strips analogous to `ggh4x::facet_nested()`.
+Search a gene and explore its 24-hour expression profile across annotated brain regions. Compare patterns by genotype, age, and sex to examine how diurnal expression varies across anatomical and biological contexts.
 
 ### Spatial mean expression
 
@@ -28,13 +28,17 @@ View spatial expression patterns across annotated brain regions using log2-norma
 
 Search supplementary rhythmicity and differential-rhythmicity results by gene. The table summarizes significant findings from the paper’s supplementary analyses, including NTG rhythmicity, APP23 rhythmicity, regional differential rhythmicity, cortical subregion tests, and genotype-associated differential rhythmicity.
 
+### APP23 vs. NTG differential expression
+
+Compare gene expression between APP23 and non-transgenic (NTG) mice within individual brain regions. Explore overall genotype effects, age- and sex-specific comparisons, and genotype interactions alongside sample-level expression and differential-expression statistics.
+
 ### Dorsal/ventral hippocampus
 
 Explore WT dorsal-vs-ventral hippocampal expression results. The panel reports differential expression results and includes matched sagittal Allen Brain Atlas in situ hybridization for the searched gene.
 
 ### Rostral-caudal rhythmicity
 
-Explore rostral, intermediate, and caudal cortical rhythmicity profiles across cortical layers. The browser-rendered SVG follows the supplied R/ggplot2 renderer: a 6.3 × 4.2 aspect ratio, `theme_bw(base_size = 12)`, double-plotted light/dark intervals, region-colored fitted curves, mean ± 1 SD summaries, small jittered observations, a gene-labelled y axis, the cortical layer as the subtitle, and an untitled bottom legend.
+Explore how rhythmic gene expression varies among rostral, intermediate, and caudal cortical regions and across cortical layers. Compare regional time courses to examine spatial differences in the timing and magnitude of diurnal expression.
 
 ### Raw data browser
 
@@ -65,9 +69,9 @@ The app displays precomputed results from spatial transcriptomic analysis of mou
 
 Runtime visualization uses precomputed read-only data files served through the public web application. Statistical modeling, normalization, rhythmicity testing, and differential-expression analyses are performed offline in R; the web interface is intended for interactive exploration and visualization of those results.
 
-For the main diurnal view, PHP exposes observations, fitted-model coefficients, dimension labels, and palettes through the JSON `plot-data` route. React renders the final SVG in the browser. The order of the selected split variables controls the facet formula: with multiple variables, the first creates rows and the remaining variables create nested column strips from outer to inner. The default is equivalent to `age ~ sex + region`, with genotype used for color.
+The diurnal and rostral–caudal views present sample-level expression together with fitted 24-hour profiles, enabling comparison across anatomical regions and biological groups. Display controls change how observations are organized visually without altering the underlying statistical results.
 
-For the rostral-caudal view, `api/index.php?route=rostral-caudal` returns ordered cortical-position metadata, double-plotted observations, mean/SD summaries, and fitted curves. `frontend_src/src/plot/RostralCaudalPlot.jsx` renders the final SVG and serializes that same SVG for download. The former PHP rostral-caudal SVG route is not retained.
+The APP23-versus-NTG view presents time-agnostic differential-expression results derived from cluster-level negative-binomial models that account for age and sex. Multiple-testing-adjusted results are reported for balanced overall comparisons as well as selected age-, sex-, and genotype-specific contrasts.
 
 ## Repository contents
 

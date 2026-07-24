@@ -12,6 +12,7 @@ require_once __DIR__ . '/lib/diurnal.php';
 require_once __DIR__ . '/lib/supplemental.php';
 require_once __DIR__ . '/lib/dv.php';
 require_once __DIR__ . '/lib/rostral_caudal.php';
+require_once __DIR__ . '/lib/nonrhythmic.php';
 require_once __DIR__ . '/lib/allen.php';
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
@@ -58,6 +59,7 @@ try {
         $metadata['rhythmicity'] = supplemental_metadata();
         $metadata['hippocampus_dv'] = dv_metadata();
         $metadata['rostral_caudal'] = rc_metadata();
+        $metadata['nonrhythmic'] = nr_metadata();
         json_response($metadata);
     }
 
@@ -183,6 +185,53 @@ try {
 
     if ($route === 'rostral-caudal') {
         json_response(rc_payload(request_string('gene', 'Dbp'), request_string('cluster', 'L23')));
+    }
+
+    if ($route === 'nonrhythmic/metadata') {
+        json_response(nr_metadata());
+    }
+
+    if ($route === 'nonrhythmic/genes') {
+        $query = request_string('q', '');
+        $limit = request_int('limit', 80, 1, 500);
+        $cluster = request_string('cluster', '');
+        $genes = nr_gene_search($query, $limit, $cluster);
+        if (request_string('format', 'object') === 'array') json_response($genes);
+        json_response(array('query' => $query, 'count' => count($genes), 'genes' => $genes));
+    }
+
+    if ($route === 'nonrhythmic/genes/resolve') {
+        json_response(nr_gene_resolve(
+            request_string('q', request_string('gene', '')),
+            request_int('limit', 25, 1, 100),
+            request_string('cluster', '')
+        ));
+    }
+
+    if ($route === 'nonrhythmic/results') {
+        json_response(nr_results_payload(
+            request_string('cluster', 'L23'),
+            request_string('contrast', NR_DEFAULT_CONTRAST),
+            request_string('c', '')
+        ));
+    }
+
+    if ($route === 'nonrhythmic/expression') {
+        json_response(nr_expression_payload(
+            request_string('gene', NR_DEFAULT_GENE),
+            request_string('cluster', 'L23')
+        ));
+    }
+
+    if ($route === 'nonrhythmic' || $route === 'nonrhythmic/payload') {
+        json_response(nr_payload(
+            request_string('gene', NR_DEFAULT_GENE),
+            request_string('cluster', 'L23'),
+            request_string('contrast', NR_DEFAULT_CONTRAST),
+            request_string('c', ''),
+            request_string('hypothesis', 'zero'),
+            request_float('threshold', 1.0, 0.0, 100.0)
+        ));
     }
 
     if ($route === 'allen/ish') {

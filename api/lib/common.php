@@ -112,6 +112,7 @@ function database_filename(string $domain): string
         'dv' => 'dorsal_ventral.sqlite',
         'supplemental' => 'supplemental.sqlite',
         'rostral_caudal' => 'rostral_caudal.sqlite',
+        'nonrhythmic' => 'nonrhythmic_app23_wald.sqlite',
     );
     if (!isset($files[$domain])) {
         throw new ApiException('Unknown database domain.', 500, $domain);

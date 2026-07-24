@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiUrl, asArray, fetchAllenIsh, fetchDiurnalPlot, fetchGenes, fetchHippocampusDv, fetchHippocampusDvGenes, fetchJson, fetchRhythmicity, fetchRostralCaudal, fetchRostralCaudalGenes, fetchRhythmicityBasic, resolveGene } from './api';
+import NonrhythmicPanel from './NonrhythmicPanel.jsx';
 import RhythmicityPlot from './plot/RhythmicityPlot.jsx';
 import RostralCaudalPlot from './plot/RostralCaudalPlot.jsx';
 
@@ -313,6 +314,7 @@ function Tabs({ active, onActive }) {
       <button type="button" className={`tab ${active === 'rhythmicity' ? 'active' : ''}`} onClick={() => onActive('rhythmicity')}>Rhythmicity statistics</button>
       <button type="button" className={`tab ${active === 'rostral_caudal' ? 'active' : ''}`} onClick={() => onActive('rostral_caudal')}>Rostral vs. caudal cortex</button>
       <button type="button" className={`tab ${active === 'hippocampus' ? 'active' : ''}`} onClick={() => onActive('hippocampus')}>Dorsal vs. ventral hippocampus</button>
+      <button type="button" className={`tab ${active === 'nonrhythmic' ? 'active' : ''}`} onClick={() => onActive('nonrhythmic')}>APP23 vs. NTG Differential Expression</button>
     </nav>
   );
 }
@@ -1439,8 +1441,14 @@ export default function DiurnalExplorer() {
 
   const geneSelectValue = geneOptions.includes(geneInput) ? geneInput : '';
   const statusTone = status === 'Ready' ? 'ready' : status === 'Error' ? 'error' : 'loading';
-  const hideSidebar = ['rhythmicity', 'rostral_caudal', 'hippocampus'].includes(activeTab);
-  const mainClassName = activeTab === 'about' ? 'layout about-layout' : hideSidebar ? 'layout full-width-layout' : 'layout';
+  const hideSidebar = ['rhythmicity', 'nonrhythmic', 'rostral_caudal', 'hippocampus'].includes(activeTab);
+  const mainClassName = activeTab === 'about'
+    ? 'layout about-layout'
+    : activeTab === 'nonrhythmic'
+      ? 'layout full-width-layout nonrhythmic-layout'
+      : hideSidebar
+        ? 'layout full-width-layout'
+        : 'layout';
 
   return (
     <div className="app-shell">
@@ -1542,7 +1550,7 @@ export default function DiurnalExplorer() {
         </aside>
         ) : null}
 
-        <section className="content">
+        <section className={activeTab === 'nonrhythmic' ? 'nonrhythmic-host' : 'content'}>
           {activeTab === 'about' ? <AboutPanel /> : null}
 
           {activeTab === 'diurnal' ? (
@@ -1620,6 +1628,14 @@ export default function DiurnalExplorer() {
               rhythmPayload={rhythmPayload}
               rhythmError={rhythmError}
               labelCluster={labelCluster}
+            />
+          ) : null}
+
+          {activeTab === 'nonrhythmic' ? (
+            <NonrhythmicPanel
+              metadata={metadata}
+              currentGene={gene}
+              onStatusChange={setStatus}
             />
           ) : null}
 

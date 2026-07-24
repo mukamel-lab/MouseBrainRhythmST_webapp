@@ -84,6 +84,32 @@ export async function fetchHippocampusDvGenes(query, signal, limit = 80) {
   return asArray(payload.genes ?? payload);
 }
 
+export async function fetchNonrhythmicGenes(query, cluster, signal, limit = 80) {
+  const payload = await fetchJson('/nonrhythmic/genes', { q: query ?? '', cluster: cluster ?? '', limit }, signal);
+  return asArray(payload.genes ?? payload);
+}
+
+export async function resolveNonrhythmicGene(query, cluster, signal) {
+  const payload = await fetchJson('/nonrhythmic/genes/resolve', { q: query ?? '', cluster: cluster ?? '', limit: 25 }, signal);
+  return {
+    ...payload,
+    gene: payload.gene === null || payload.gene === undefined ? '' : String(payload.gene),
+    suggestions: asArray(payload.suggestions),
+  };
+}
+
+export async function fetchNonrhythmicResults(params, signal) {
+  return fetchJson('/nonrhythmic/results', params, signal);
+}
+
+export async function fetchNonrhythmicExpression(params, signal) {
+  return fetchJson('/nonrhythmic/expression', params, signal);
+}
+
+export async function fetchNonrhythmicPayload(params, signal) {
+  return fetchJson('/nonrhythmic', params, signal);
+}
+
 export async function fetchRostralCaudal(params, signal) {
   return fetchJson('/rostral-caudal', params, signal);
 }
