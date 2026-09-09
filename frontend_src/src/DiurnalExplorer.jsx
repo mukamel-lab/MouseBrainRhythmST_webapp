@@ -435,7 +435,6 @@ function RhythmicityResultsTable({ rows = [], labelCluster = (value) => value, s
         ['result', 'Result'],
         ['cluster1', 'Cluster 1'],
         ['cluster2', 'Cluster 2'],
-        ['context', 'Context'],
         ['significance', 'FDR/padj'],
         ['pvalue', 'p value'],
         ['amp1', 'Amplitude 1'],
@@ -504,7 +503,6 @@ function RhythmicityResultsTable({ rows = [], labelCluster = (value) => value, s
                   <td>{row.result_type}</td>
                   <td>{parts[0] ? displayValue(parts[0].value) : '—'}</td>
                   <td>{parts[1] ? displayValue(parts[1].value) : '—'}</td>
-                  {context}
                   {significance}
                   {pvalue}
                   <td>{displayValue(row.amplitude_display || row.amplitude)}</td>
