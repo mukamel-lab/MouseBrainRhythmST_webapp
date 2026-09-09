@@ -124,6 +124,27 @@ function detailParts(row) {
   });
 }
 
+// The two groups a differential-rhythmicity row contrasts. Cluster DRGs (S3)
+// carry cluster1/cluster2, cortex-subregion DRGs (S6) carry region_1/region_2,
+// and genotype DRGs (S10) contrast APP23 vs NTG (from the comparison label).
+function comparisonGroups(row) {
+  const keyed = {};
+  detailParts(row).forEach((part) => { if (part.key) keyed[part.key.toLowerCase()] = part.value; });
+  if (keyed.cluster1 || keyed.cluster2) return [keyed.cluster1 || '', keyed.cluster2 || ''];
+  if (keyed.region_1 || keyed.region_2) return [keyed.region_1 || '', keyed.region_2 || ''];
+  const pair = String(row.comparison_display || '').split(/\s+vs\.?\s+/i).map((value) => value.trim());
+  return pair.length === 2 ? pair : ['', ''];
+}
+
+// Single anatomical region for a differential row, when the row is scoped to
+// one (genotype DRGs, cortex-subregion DRGs). Cluster DRGs compare two regions,
+// so there is no single region to show.
+function drgRegion(row) {
+  const label = String(row.cluster_display || '').trim();
+  if (!label || /\svs\.?\s/i.test(label) || label.includes('_')) return '';
+  return label;
+}
+
 function sortValue(row, key, labelCluster) {
   if (key === 'result') return row.result_type || '';
   if (key === 'context') return row.context_display || labelClusterPhrase(row.context, labelCluster) || '';
@@ -135,10 +156,10 @@ function sortValue(row, key, labelCluster) {
   if (key === 'phase1') return Number(row.phase_hr ?? Number.NaN);
   if (key === 'amp2') return Number(row.amplitude_2 ?? Number.NaN);
   if (key === 'phase2') return Number(row.phase_hr_2 ?? Number.NaN);
-  if (key === 'cluster1' || key === 'cluster2') {
-    const part = detailParts(row)[key === 'cluster1' ? 0 : 1];
-    return part ? part.value : '';
-  }
+  if (key === 'age') return row.age || '';
+  if (key === 'region') return drgRegion(row);
+  if (key === 'cluster1') return comparisonGroups(row)[0];
+  if (key === 'cluster2') return comparisonGroups(row)[1];
   return '';
 }
 
@@ -433,6 +454,8 @@ function RhythmicityResultsTable({ rows = [], labelCluster = (value) => value, s
   const columns = split
     ? [
         ['result', 'Result'],
+        ['age', 'Age'],
+        ['region', 'Region'],
         ['cluster1', 'Cluster 1'],
         ['cluster2', 'Cluster 2'],
         ['significance', 'FDR/padj'],
@@ -497,12 +520,14 @@ function RhythmicityResultsTable({ rows = [], labelCluster = (value) => value, s
             const significance = <td><strong>{displayValue(row.significance_display)}</strong><br /><span>{row.significance_metric}</span></td>;
             const pvalue = <td>{displayValue(row.pvalue_display)}</td>;
             if (split) {
-              const parts = detailParts(row);
+              const [group1, group2] = comparisonGroups(row);
               return (
                 <tr key={`${row.table_id}-${row.sheet}-${row.context}-${index}`}>
                   <td>{row.result_type}</td>
-                  <td>{parts[0] ? displayValue(parts[0].value) : '—'}</td>
-                  <td>{parts[1] ? displayValue(parts[1].value) : '—'}</td>
+                  <td>{displayValue(row.age)}</td>
+                  <td>{displayValue(drgRegion(row))}</td>
+                  <td>{displayValue(group1)}</td>
+                  <td>{displayValue(group2)}</td>
                   {significance}
                   {pvalue}
                   <td>{displayValue(row.amplitude_display || row.amplitude)}</td>
