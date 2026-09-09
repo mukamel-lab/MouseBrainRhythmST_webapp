@@ -506,6 +506,85 @@ function spatial_legend_svg(float $min, float $max, float $gamma): string
         . '</svg>';
 }
 
+function spatial_reference_label_overlay(): string
+{
+    static $overlay = null;
+    if ($overlay !== null) return $overlay;
+    $overlay = '';
+    $path = app_root() . DIRECTORY_SEPARATOR . 'metadata' . DIRECTORY_SEPARATOR . 'spatial_reference_labels.json';
+    if (!is_file($path)) return $overlay;
+    $spec = json_decode((string) file_get_contents($path), true);
+    if (!is_array($spec)) return $overlay;
+
+    $leaders = '';
+    $texts = '';
+    $render = function (array $item, bool $isDirection) {
+        $x = isset($item['x']) ? (float) $item['x'] : 0;
+        $y = isset($item['y']) ? (float) $item['y'] : 0;
+        $size = isset($item['size']) ? (float) $item['size'] : ($isDirection ? 3.6 : 3.2);
+        $transform = isset($item['rotate']) ? ' transform="rotate(' . (float) $item['rotate'] . ' ' . $x . ' ' . $y . ')"' : '';
+        $fill = $isDirection ? '#444' : '#111';
+        $style = $isDirection ? ' font-style="italic"' : '';
+        $weight = $isDirection ? '700' : '600';
+        return '<text x="' . $x . '" y="' . $y . '" font-size="' . $size . '"' . $style
+            . ' font-weight="' . $weight . '" text-anchor="middle" fill="' . $fill . '"'
+            . ' paint-order="stroke" stroke="#fff" stroke-width="1" stroke-linejoin="round"' . $transform . '>'
+            . xml_escape((string) $item['text']) . '</text>';
+    };
+
+    foreach ((isset($spec['regions']) && is_array($spec['regions']) ? $spec['regions'] : array()) as $item) {
+        if (!isset($item['text'])) continue;
+        if (isset($item['line']) && is_array($item['line']) && count($item['line']) > 1) {
+            $points = array();
+            foreach ($item['line'] as $point) {
+                if (is_array($point) && count($point) >= 2) $points[] = ((float) $point[0]) . ',' . ((float) $point[1]);
+            }
+            if (count($points) > 1) {
+                $end = end($item['line']);
+                $leaders .= '<polyline points="' . implode(' ', $points) . '" fill="none" stroke="#1a1a1a" stroke-width="0.4"/>'
+                    . '<circle cx="' . ((float) $end[0]) . '" cy="' . ((float) $end[1]) . '" r="0.7" fill="#1a1a1a"/>';
+            }
+        }
+        $texts .= $render($item, false);
+    }
+    foreach ((isset($spec['directions']) && is_array($spec['directions']) ? $spec['directions'] : array()) as $item) {
+        if (!isset($item['text'])) continue;
+        $texts .= $render($item, true);
+    }
+
+    $overlay = '<g font-family="Arial, Helvetica, sans-serif">' . $leaders . $texts . '</g>';
+    return $overlay;
+}
+
+function diurnal_spatial_reference(PDO $pdo): array
+{
+    $config = spatial_template_config();
+    $labelRows = db_all($pdo, 'SELECT code, label FROM clusters');
+    $labels = array();
+    foreach ($labelRows as $row) {
+        $labels[(string) $row['code']] = (string) $row['label'];
+    }
+    $regions = array();
+    foreach ($config['colors'] as $code => $color) {
+        $regions[] = array(
+            'code' => (string) $code,
+            'label' => isset($labels[(string) $code]) ? $labels[(string) $code] : (string) $code,
+            'color' => (string) $color,
+        );
+    }
+
+    $svg = $config['template'];
+    $overlay = spatial_reference_label_overlay();
+    if ($overlay !== '') {
+        $svg = preg_replace('/<\/svg>\s*$/', $overlay . '</svg>', $svg, 1);
+    }
+
+    return array(
+        'map' => '<div class="spatial-svg">' . spatial_scope_svg($svg, 'spatial-reference') . '</div>',
+        'regions' => $regions,
+    );
+}
+
 function diurnal_spatial_payload(string $gene, float $gamma): array
 {
     $pdo = open_database('diurnal');
@@ -518,7 +597,7 @@ function diurnal_spatial_payload(string $gene, float $gamma): array
         . "WHERE sm.gene_id = :gene_id\n"
         . "ORDER BY gt.sort_order, a.sort_order, c.sort_order", array('gene_id' => (int) $resolved['gene_id']));
     if (!count($rows)) {
-        return array('gene' => $resolved['gene'], 'gamma' => $gamma, 'limits' => array(0, 1), 'titles' => array(), 'panels' => array(), 'legend' => spatial_legend_svg(0, 1, $gamma));
+        return array('gene' => $resolved['gene'], 'gamma' => $gamma, 'limits' => array(0, 1), 'titles' => array(), 'panels' => array(), 'legend' => spatial_legend_svg(0, 1, $gamma), 'reference' => diurnal_spatial_reference($pdo));
     }
     $values = array_map(function ($row) { return (float) $row['mean_value']; }, $rows);
     $min = floor(min($values));
@@ -579,6 +658,7 @@ function diurnal_spatial_payload(string $gene, float $gamma): array
         'titles' => $titles,
         'panels' => $panels,
         'legend' => spatial_legend_svg((float) $min, (float) $max, $gamma),
+        'reference' => diurnal_spatial_reference($pdo),
     );
 }
 

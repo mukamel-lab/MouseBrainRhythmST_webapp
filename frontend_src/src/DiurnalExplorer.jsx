@@ -1609,6 +1609,30 @@ export default function DiurnalExplorer() {
                     ))}
                   </div>
                   <div className="spatial-legend" dangerouslySetInnerHTML={{ __html: spatialPayload.legend || '' }} />
+                  {spatialPayload.reference ? (
+                    <div className="spatial-reference">
+                      <h2>Region reference map</h2>
+                      <p className="methods-note">
+                        Each panel above shows the same coronal brain section. Use the reference below to identify
+                        which anatomical region corresponds to each area of the map.
+                      </p>
+                      <div className="spatial-reference-body">
+                        <div
+                          className="spatial-reference-map"
+                          dangerouslySetInnerHTML={{ __html: spatialPayload.reference.map || '' }}
+                        />
+                        <ul className="spatial-reference-legend">
+                          {(spatialPayload.reference.regions || []).map((region) => (
+                            <li key={region.code}>
+                              <span className="swatch" style={{ background: region.color }} />
+                              <span className="code">{region.code}</span>
+                              <span className="label">{region.label}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  ) : null}
                   <div className="gene-button-row">
                     <a
                       className="download-button"

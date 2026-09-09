@@ -1,0 +1,29 @@
+{
+  "viewBox": "0 0 153.34 122.17",
+  "directions": [
+    { "text": "Anterior",  "x": 7,   "y": 63,  "rotate": -90 },
+    { "text": "Posterior",  "x": 122, "y": 9 },
+    { "text": "Dorsal",     "x": 66,  "y": 5 },
+    { "text": "Ventral",    "x": 101, "y": 120 }
+  ],
+  "regions": [
+    { "text": "Meninges",       "x": 40,  "y": 7,   "line": [[40, 9], [45, 17]] },
+    { "text": "Cortex",         "x": 33,  "y": 32,  "line": [[38, 33], [49, 29]] },
+    { "text": "L2/3–L6b",  "x": 33,  "y": 36,  "size": 2.5 },
+    { "text": "L6b",            "x": 36,  "y": 80,  "size": 2.3 },
+    { "text": "Caudoputamen",   "x": 58,  "y": 64 },
+    { "text": "STRv",           "x": 63,  "y": 89,  "size": 2.7 },
+    { "text": "Piriform cortex","x": 44,  "y": 105, "rotate": -18 },
+    { "text": "Amygdala",       "x": 79,  "y": 93,  "size": 2.7 },
+    { "text": "COAa",           "x": 85,  "y": 109, "size": 2.6 },
+    { "text": "COAp",           "x": 109, "y": 106, "size": 2.6 },
+    { "text": "Fiber tracts",   "x": 83,  "y": 52,  "size": 2.7 },
+    { "text": "GP",             "x": 85,  "y": 66,  "size": 2.7 },
+    { "text": "RN",             "x": 97,  "y": 60,  "size": 2.7 },
+    { "text": "LV",             "x": 100, "y": 80,  "size": 2.4 },
+    { "text": "CA1",            "x": 104, "y": 26,  "size": 2.7 },
+    { "text": "CA3",            "x": 114, "y": 80,  "size": 2.7 },
+    { "text": "DG",             "x": 122, "y": 52,  "size": 2.7 },
+    { "text": "RHP",            "x": 142, "y": 56,  "size": 2.7 }
+  ]
+}
