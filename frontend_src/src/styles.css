@@ -150,6 +150,7 @@ button:disabled { cursor: not-allowed; opacity: .65; }
 .results-table tr:last-child td { border-bottom: 0; }
 .results-table td span { color: var(--muted); font-size: .78rem; }
 .detail-cell { min-width: 280px; max-width: 460px; line-height: 1.35; color: #344052; }
+.results-table.results-table--wide { min-width: 1320px; }
 .empty-results { border: 1px dashed var(--border); border-radius: .55rem; padding: 1rem; background: #fafbfc; color: var(--muted); }
 .empty-results h2 { margin: 0 0 .35rem; color: #344052; font-size: 1rem; }
 .empty-results p { margin: 0; }

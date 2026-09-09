@@ -113,6 +113,17 @@ function sourceTableLabel(value) {
   return match ? `Sup Table ${match[1]}` : text;
 }
 
+function detailParts(row) {
+  const raw = String(row.detail_display || row.detail || '').trim();
+  if (!raw) return [];
+  return raw.split(/\s*;\s*/).filter(Boolean).map((part) => {
+    const eq = part.indexOf('=');
+    return eq === -1
+      ? { key: '', value: part.trim() }
+      : { key: part.slice(0, eq).trim(), value: part.slice(eq + 1).trim() };
+  });
+}
+
 function sortValue(row, key, labelCluster) {
   if (key === 'result') return row.result_type || '';
   if (key === 'context') return row.context_display || labelClusterPhrase(row.context, labelCluster) || '';
@@ -120,6 +131,14 @@ function sortValue(row, key, labelCluster) {
   if (key === 'pvalue') return Number(row.p_value ?? row.pvalue ?? Number.POSITIVE_INFINITY);
   if (key === 'amp_phase') return ampPhaseText(row);
   if (key === 'detail') return row.detail_display || row.detail || '';
+  if (key === 'amp1') return Number(row.amplitude ?? Number.NaN);
+  if (key === 'phase1') return Number(row.phase_hr ?? Number.NaN);
+  if (key === 'amp2') return Number(row.amplitude_2 ?? Number.NaN);
+  if (key === 'phase2') return Number(row.phase_hr_2 ?? Number.NaN);
+  if (key.startsWith('detail')) {
+    const part = detailParts(row)[Number(key.slice(6)) - 1];
+    return part ? part.value : '';
+  }
   return '';
 }
 
@@ -409,16 +428,31 @@ function RhythmicitySourceBadges({ counts = {} }) {
   );
 }
 
-function RhythmicityResultsTable({ rows = [], labelCluster = (value) => value }) {
+function RhythmicityResultsTable({ rows = [], labelCluster = (value) => value, split = false }) {
   const [sortConfig, setSortConfig] = useState({ key: '', direction: 'none' });
-  const columns = [
-    ['result', 'Result'],
-    ['context', 'Context'],
-    ['significance', 'FDR/padj'],
-    ['pvalue', 'p value'],
-    ['amp_phase', 'Amplitude / phase'],
-    ['detail', 'Details'],
-  ];
+  const columns = split
+    ? [
+        ['result', 'Result'],
+        ['context', 'Context'],
+        ['significance', 'FDR/padj'],
+        ['pvalue', 'p value'],
+        ['amp1', 'Amplitude 1'],
+        ['phase1', 'Phase 1 (h)'],
+        ['amp2', 'Amplitude 2'],
+        ['phase2', 'Phase 2 (h)'],
+        ['detail1', 'Detail 1'],
+        ['detail2', 'Detail 2'],
+        ['detail3', 'Detail 3'],
+        ['detail4', 'Detail 4'],
+      ]
+    : [
+        ['result', 'Result'],
+        ['context', 'Context'],
+        ['significance', 'FDR/padj'],
+        ['pvalue', 'p value'],
+        ['amp_phase', 'Amplitude / phase'],
+        ['detail', 'Details'],
+      ];
   const sortedRows = useMemo(() => {
     if (!sortConfig.key || sortConfig.direction === 'none') return rows;
     const direction = sortConfig.direction === 'asc' ? 1 : -1;
@@ -448,7 +482,7 @@ function RhythmicityResultsTable({ rows = [], labelCluster = (value) => value })
   if (!rows.length) return null;
   return (
     <div className="results-table-wrap">
-      <table className="results-table sortable-table">
+      <table className={`results-table sortable-table${split ? ' results-table--wide' : ''}`}>
         <thead>
           <tr>
             {columns.map(([key, label]) => (
@@ -461,16 +495,40 @@ function RhythmicityResultsTable({ rows = [], labelCluster = (value) => value })
           </tr>
         </thead>
         <tbody>
-          {sortedRows.map((row, index) => (
-            <tr key={`${row.table_id}-${row.sheet}-${row.context}-${index}`}>
-              <td>{row.result_type}</td>
-              <td>{displayValue(row.context_display || labelClusterPhrase(row.context, labelCluster))}</td>
-              <td><strong>{displayValue(row.significance_display)}</strong><br /><span>{row.significance_metric}</span></td>
-              <td>{displayValue(row.pvalue_display)}</td>
-              <td>{ampPhaseText(row)}</td>
-              <td className="detail-cell">{displayValue(row.detail_display || row.detail)}</td>
-            </tr>
-          ))}
+          {sortedRows.map((row, index) => {
+            const parts = split ? detailParts(row) : [];
+            return (
+              <tr key={`${row.table_id}-${row.sheet}-${row.context}-${index}`}>
+                <td>{row.result_type}</td>
+                <td>{displayValue(row.context_display || labelClusterPhrase(row.context, labelCluster))}</td>
+                <td><strong>{displayValue(row.significance_display)}</strong><br /><span>{row.significance_metric}</span></td>
+                <td>{displayValue(row.pvalue_display)}</td>
+                {split ? (
+                  <>
+                    <td>{displayValue(row.amplitude_display || row.amplitude)}</td>
+                    <td>{displayValue(row.phase_hr_display || row.phase_hr)}</td>
+                    <td>{displayValue(row.amplitude_2_display || row.amplitude_2)}</td>
+                    <td>{displayValue(row.phase_hr_2_display || row.phase_hr_2)}</td>
+                    {[0, 1, 2, 3].map((i) => (
+                      <td key={i}>
+                        {parts[i] ? (
+                          <>
+                            <strong>{displayValue(parts[i].value)}</strong>
+                            {parts[i].key ? <><br /><span>{parts[i].key}</span></> : null}
+                          </>
+                        ) : '—'}
+                      </td>
+                    ))}
+                  </>
+                ) : (
+                  <>
+                    <td>{ampPhaseText(row)}</td>
+                    <td className="detail-cell">{displayValue(row.detail_display || row.detail)}</td>
+                  </>
+                )}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -679,7 +737,7 @@ function RhythmicityPanel({
           </div>
           <RhythmicitySourceBadges counts={rhythmPayload.source_counts} />
           {rhythmPayload.limited ? <p className="help-text">The table is limited for browser performance. Download the TSV for more rows.</p> : null}
-          {rows.length ? <RhythmicityResultsTable rows={rows} labelCluster={labelCluster} /> : <div className="empty-results">No rows passed the current table and significance filters.</div>}
+          {rows.length ? <RhythmicityResultsTable rows={rows} labelCluster={labelCluster} split={category === 'differential'} /> : <div className="empty-results">No rows passed the current table and significance filters.</div>}
         </>
       ) : null}
     </section>
