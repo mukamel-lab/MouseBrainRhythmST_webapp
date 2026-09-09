@@ -135,8 +135,8 @@ function sortValue(row, key, labelCluster) {
   if (key === 'phase1') return Number(row.phase_hr ?? Number.NaN);
   if (key === 'amp2') return Number(row.amplitude_2 ?? Number.NaN);
   if (key === 'phase2') return Number(row.phase_hr_2 ?? Number.NaN);
-  if (key.startsWith('detail')) {
-    const part = detailParts(row)[Number(key.slice(6)) - 1];
+  if (key === 'cluster1' || key === 'cluster2') {
+    const part = detailParts(row)[key === 'cluster1' ? 0 : 1];
     return part ? part.value : '';
   }
   return '';
@@ -433,6 +433,8 @@ function RhythmicityResultsTable({ rows = [], labelCluster = (value) => value, s
   const columns = split
     ? [
         ['result', 'Result'],
+        ['cluster1', 'Cluster 1'],
+        ['cluster2', 'Cluster 2'],
         ['context', 'Context'],
         ['significance', 'FDR/padj'],
         ['pvalue', 'p value'],
@@ -440,10 +442,6 @@ function RhythmicityResultsTable({ rows = [], labelCluster = (value) => value, s
         ['phase1', 'Phase 1 (h)'],
         ['amp2', 'Amplitude 2'],
         ['phase2', 'Phase 2 (h)'],
-        ['detail1', 'Detail 1'],
-        ['detail2', 'Detail 2'],
-        ['detail3', 'Detail 3'],
-        ['detail4', 'Detail 4'],
       ]
     : [
         ['result', 'Result'],
@@ -496,36 +494,34 @@ function RhythmicityResultsTable({ rows = [], labelCluster = (value) => value, s
         </thead>
         <tbody>
           {sortedRows.map((row, index) => {
-            const parts = split ? detailParts(row) : [];
+            const context = <td>{displayValue(row.context_display || labelClusterPhrase(row.context, labelCluster))}</td>;
+            const significance = <td><strong>{displayValue(row.significance_display)}</strong><br /><span>{row.significance_metric}</span></td>;
+            const pvalue = <td>{displayValue(row.pvalue_display)}</td>;
+            if (split) {
+              const parts = detailParts(row);
+              return (
+                <tr key={`${row.table_id}-${row.sheet}-${row.context}-${index}`}>
+                  <td>{row.result_type}</td>
+                  <td>{parts[0] ? displayValue(parts[0].value) : '—'}</td>
+                  <td>{parts[1] ? displayValue(parts[1].value) : '—'}</td>
+                  {context}
+                  {significance}
+                  {pvalue}
+                  <td>{displayValue(row.amplitude_display || row.amplitude)}</td>
+                  <td>{displayValue(row.phase_hr_display || row.phase_hr)}</td>
+                  <td>{displayValue(row.amplitude_2_display || row.amplitude_2)}</td>
+                  <td>{displayValue(row.phase_hr_2_display || row.phase_hr_2)}</td>
+                </tr>
+              );
+            }
             return (
               <tr key={`${row.table_id}-${row.sheet}-${row.context}-${index}`}>
                 <td>{row.result_type}</td>
-                <td>{displayValue(row.context_display || labelClusterPhrase(row.context, labelCluster))}</td>
-                <td><strong>{displayValue(row.significance_display)}</strong><br /><span>{row.significance_metric}</span></td>
-                <td>{displayValue(row.pvalue_display)}</td>
-                {split ? (
-                  <>
-                    <td>{displayValue(row.amplitude_display || row.amplitude)}</td>
-                    <td>{displayValue(row.phase_hr_display || row.phase_hr)}</td>
-                    <td>{displayValue(row.amplitude_2_display || row.amplitude_2)}</td>
-                    <td>{displayValue(row.phase_hr_2_display || row.phase_hr_2)}</td>
-                    {[0, 1, 2, 3].map((i) => (
-                      <td key={i}>
-                        {parts[i] ? (
-                          <>
-                            <strong>{displayValue(parts[i].value)}</strong>
-                            {parts[i].key ? <><br /><span>{parts[i].key}</span></> : null}
-                          </>
-                        ) : '—'}
-                      </td>
-                    ))}
-                  </>
-                ) : (
-                  <>
-                    <td>{ampPhaseText(row)}</td>
-                    <td className="detail-cell">{displayValue(row.detail_display || row.detail)}</td>
-                  </>
-                )}
+                {context}
+                {significance}
+                {pvalue}
+                <td>{ampPhaseText(row)}</td>
+                <td className="detail-cell">{displayValue(row.detail_display || row.detail)}</td>
               </tr>
             );
           })}
