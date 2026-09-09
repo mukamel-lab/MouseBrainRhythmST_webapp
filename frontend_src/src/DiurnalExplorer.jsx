@@ -114,7 +114,6 @@ function sourceTableLabel(value) {
 }
 
 function sortValue(row, key, labelCluster) {
-  if (key === 'source') return `${sourceTableLabel(row.table_id)} ${row.table_name || ''}`;
   if (key === 'result') return row.result_type || '';
   if (key === 'context') return row.context_display || labelClusterPhrase(row.context, labelCluster) || '';
   if (key === 'significance') return Number(row.significance ?? Number.POSITIVE_INFINITY);
@@ -312,6 +311,7 @@ function Tabs({ active, onActive }) {
       <button type="button" className={`tab ${active === 'diurnal' ? 'active' : ''}`} onClick={() => onActive('diurnal')}>Diurnal Expression</button>
       <button type="button" className={`tab ${active === 'spatial' ? 'active' : ''}`} onClick={() => onActive('spatial')}>Spatial mean</button>
       <button type="button" className={`tab ${active === 'rhythmicity' ? 'active' : ''}`} onClick={() => onActive('rhythmicity')}>Rhythmicity statistics</button>
+      <button type="button" className={`tab ${active === 'diff_rhythmicity' ? 'active' : ''}`} onClick={() => onActive('diff_rhythmicity')}>Differential rhythmicity</button>
       <button type="button" className={`tab ${active === 'rostral_caudal' ? 'active' : ''}`} onClick={() => onActive('rostral_caudal')}>Rostral vs. caudal cortex</button>
       <button type="button" className={`tab ${active === 'hippocampus' ? 'active' : ''}`} onClick={() => onActive('hippocampus')}>Dorsal vs. ventral hippocampus</button>
       <button type="button" className={`tab ${active === 'nonrhythmic' ? 'active' : ''}`} onClick={() => onActive('nonrhythmic')}>APP23 vs. NTG Differential Expression</button>
@@ -412,7 +412,6 @@ function RhythmicitySourceBadges({ counts = {} }) {
 function RhythmicityResultsTable({ rows = [], labelCluster = (value) => value }) {
   const [sortConfig, setSortConfig] = useState({ key: '', direction: 'none' });
   const columns = [
-    ['source', 'Source'],
     ['result', 'Result'],
     ['context', 'Context'],
     ['significance', 'FDR/padj'],
@@ -464,7 +463,6 @@ function RhythmicityResultsTable({ rows = [], labelCluster = (value) => value })
         <tbody>
           {sortedRows.map((row, index) => (
             <tr key={`${row.table_id}-${row.sheet}-${row.context}-${index}`}>
-              <td><strong>{sourceTableLabel(row.table_id)}</strong><br /><span>{row.table_name}</span></td>
               <td>{row.result_type}</td>
               <td>{displayValue(row.context_display || labelClusterPhrase(row.context, labelCluster))}</td>
               <td><strong>{displayValue(row.significance_display)}</strong><br /><span>{row.significance_metric}</span></td>
@@ -553,7 +551,23 @@ function CompactRhythmicityUnderPlot({ gene, payload, error, labelCluster = (val
   );
 }
 
+const RHYTHMICITY_CATEGORIES = {
+  rhythmicity: {
+    title: 'Rhythmicity statistics',
+    prompt: 'Search rhythmic-gene tables by gene',
+    allLabel: 'All rhythmic-gene tables',
+    note: 'Rhythmic genes indexed from Sup Table 1 (NTG) and Sup Table 2 (APP23), filtered to rows with the table-specific FDR-like value or padj',
+  },
+  differential: {
+    title: 'Differential rhythmicity statistics',
+    prompt: 'Search differential-rhythmicity tables by gene',
+    allLabel: 'All differential-rhythmicity tables',
+    note: 'Differentially rhythmic genes indexed from Sup Table 3 (cluster), Sup Table 6 (cortex subregion), and Sup Table 10 (APP23 vs NTG genotype), filtered to rows with the table-specific FDR-like value or padj',
+  },
+};
+
 function RhythmicityPanel({
+  category = 'rhythmicity',
   currentGene,
   metadata,
   rhythmGeneInput,
@@ -568,7 +582,9 @@ function RhythmicityPanel({
   rhythmError,
   labelCluster,
 }) {
-  const sources = Array.isArray(metadata?.rhythmicity?.sources) ? metadata.rhythmicity.sources : [];
+  const categoryInfo = RHYTHMICITY_CATEGORIES[category] || RHYTHMICITY_CATEGORIES.rhythmicity;
+  const allSources = Array.isArray(metadata?.rhythmicity?.sources) ? metadata.rhythmicity.sources : [];
+  const sources = allSources.filter((source) => (source.category || 'rhythmicity') === category);
   const rows = Array.isArray(rhythmPayload?.rows) ? rhythmPayload.rows : [];
   const thresholdDisplay = Number(rhythmThreshold).toPrecision(2);
   const downloadUrl = apiUrl('/rhythmicity.tsv', {
@@ -586,11 +602,11 @@ function RhythmicityPanel({
   }
 
   return (
-    <section className="tab-panel active" aria-label="Rhythmicity results">
+    <section className="tab-panel active" aria-label={`${categoryInfo.title} results`}>
       {rhythmError ? <div className="error-banner">Rhythmicity search failed. {rhythmError}</div> : null}
       <div className="rhythm-search-card">
         <form className="rhythm-search-form" onSubmit={submitSearch}>
-          <label className="control-label" htmlFor="rhythmGeneInput">Search supplementary rhythmicity tables by gene</label>
+          <label className="control-label" htmlFor="rhythmGeneInput">{categoryInfo.prompt}</label>
           <div className="rhythm-search-row">
             <input
               id="rhythmGeneInput"
@@ -613,12 +629,12 @@ function RhythmicityPanel({
           </div>
           <div className="rhythm-filter-row">
             <label>
-              <span>Source</span>
+              <span>Table</span>
               <select value={rhythmSource} onChange={(event) => setRhythmSource(event.target.value)}>
-                <option value="all">All rhythmicity / DRG tables</option>
+                <option value={category}>{categoryInfo.allLabel}</option>
                 {sources.map((source) => (
                   <option key={source.table_id} value={source.table_id}>
-                    {source.table_id}: {source.label} ({formatCount(source.row_count)} rows)
+                    {source.label} ({formatCount(source.row_count)} rows)
                   </option>
                 ))}
               </select>
@@ -638,18 +654,18 @@ function RhythmicityPanel({
           </div>
         </form>
         <p className="methods-note">
-          Results are indexed from Sup Table 1, Sup Table 2, Sup Table 3, Sup Table 6, and Sup Table 10 and filtered to rows with the table-specific FDR-like value or padj &lt; {thresholdDisplay}. DEG-only and enrichment-only tables are intentionally excluded from this gene-level rhythmicity search.
+          {categoryInfo.note} &lt; {thresholdDisplay}.
         </p>
       </div>
 
-      {!rhythmPayload && !rhythmError ? <div className="loading">Loading rhythmicity results…</div> : null}
+      {!rhythmPayload && !rhythmError ? <div className="loading">Loading results…</div> : null}
       {rhythmPayload && !rhythmPayload.available ? <div className="error-banner">No rhythmicity index was found on the backend.</div> : null}
       {rhythmPayload && rhythmPayload.available && !rhythmPayload.found ? (
         <div className="empty-results">
-          <h2>No exact rhythmicity-table match for “{rhythmPayload.input}”</h2>
+          <h2>No exact table match for “{rhythmPayload.input}”</h2>
           {Array.isArray(rhythmPayload.suggestions) && rhythmPayload.suggestions.length ? (
             <p>Suggestions: {rhythmPayload.suggestions.slice(0, 10).join(', ')}</p>
-          ) : <p>No similar gene symbols were found in the indexed rhythmicity tables.</p>}
+          ) : <p>No similar gene symbols were found in the indexed tables.</p>}
         </div>
       ) : null}
       {rhythmPayload && rhythmPayload.found ? (
@@ -657,13 +673,13 @@ function RhythmicityPanel({
           <div className="result-summary">
             <div>
               <h2>{rhythmPayload.gene}</h2>
-              <p>{formatCount(rhythmPayload.count)} significant rhythmicity result{Number(rhythmPayload.count) === 1 ? '' : 's'} found. Showing {formatCount(rhythmPayload.displayed_count)}.</p>
+              <p>{formatCount(rhythmPayload.count)} significant result{Number(rhythmPayload.count) === 1 ? '' : 's'} found. Showing {formatCount(rhythmPayload.displayed_count)}.</p>
             </div>
-            {rows.length ? <a className="download-button" href={downloadUrl} download={`rhythmicity_${cleanFilename(rhythmPayload.gene)}.tsv`}>Download TSV</a> : null}
+            {rows.length ? <a className="download-button" href={downloadUrl} download={`${category === 'differential' ? 'differential_rhythmicity' : 'rhythmicity'}_${cleanFilename(rhythmPayload.gene)}.tsv`}>Download TSV</a> : null}
           </div>
           <RhythmicitySourceBadges counts={rhythmPayload.source_counts} />
           {rhythmPayload.limited ? <p className="help-text">The table is limited for browser performance. Download the TSV for more rows.</p> : null}
-          {rows.length ? <RhythmicityResultsTable rows={rows} labelCluster={labelCluster} /> : <div className="empty-results">No rows passed the current source and significance filters.</div>}
+          {rows.length ? <RhythmicityResultsTable rows={rows} labelCluster={labelCluster} /> : <div className="empty-results">No rows passed the current table and significance filters.</div>}
         </>
       ) : null}
     </section>
@@ -1050,7 +1066,7 @@ export default function DiurnalExplorer() {
 
   const [rhythmGeneInput, setRhythmGeneInput] = useState(DEFAULT_GENE);
   const [rhythmQuery, setRhythmQuery] = useState(DEFAULT_GENE);
-  const [rhythmSource, setRhythmSource] = useState('all');
+  const [rhythmSource, setRhythmSource] = useState('rhythmicity');
   const [rhythmThreshold, setRhythmThreshold] = useState(DEFAULT_RHYTHMICITY_THRESHOLD);
   const [rhythmPayload, setRhythmPayload] = useState(null);
   const [rhythmError, setRhythmError] = useState('');
@@ -1100,7 +1116,7 @@ export default function DiurnalExplorer() {
     setGamma(Number(defaults.gamma || 1.7));
     setRhythmGeneInput(nextGene);
     setRhythmQuery(nextGene);
-    setRhythmSource('all');
+    setRhythmSource('rhythmicity');
     setRhythmThreshold(Number(nextMetadata.rhythmicity?.default_threshold || DEFAULT_RHYTHMICITY_THRESHOLD));
     const hipDefaults = nextMetadata.hippocampus_dv || {};
     const nextHipGene = String(hipDefaults.default_gene || DEFAULT_HIPPOCAMPUS_DV_GENE);
@@ -1311,7 +1327,7 @@ export default function DiurnalExplorer() {
   }, [metadata, gene, includeRegion]);
 
   useEffect(() => {
-    if (!metadata || activeTab !== 'rhythmicity') return undefined;
+    if (!metadata || (activeTab !== 'rhythmicity' && activeTab !== 'diff_rhythmicity')) return undefined;
     const controller = new AbortController();
     async function loadRhythmicity() {
       try {
@@ -1442,7 +1458,12 @@ export default function DiurnalExplorer() {
 
   const geneSelectValue = geneOptions.includes(geneInput) ? geneInput : '';
   const statusTone = status === 'Ready' ? 'ready' : status === 'Error' ? 'error' : 'loading';
-  const hideSidebar = ['rhythmicity', 'nonrhythmic', 'rostral_caudal', 'hippocampus'].includes(activeTab);
+  const hideSidebar = ['rhythmicity', 'diff_rhythmicity', 'nonrhythmic', 'rostral_caudal', 'hippocampus'].includes(activeTab);
+  const selectTab = (tab) => {
+    setActiveTab(tab);
+    if (tab === 'rhythmicity') setRhythmSource('rhythmicity');
+    else if (tab === 'diff_rhythmicity') setRhythmSource('differential');
+  };
   const mainClassName = activeTab === 'about'
     ? 'layout about-layout'
     : activeTab === 'nonrhythmic'
@@ -1460,7 +1481,7 @@ export default function DiurnalExplorer() {
             <h1>Spatio-Temporal Atlas of the Diurnal Mouse Brain Transcriptome</h1>
             <p className="subtitle">Spatial transcriptomics of 24-hour brain transcription in healthy and APP23 mouse brain.</p>
           </div>
-          <Tabs active={activeTab} onActive={setActiveTab} />
+          <Tabs active={activeTab} onActive={selectTab} />
         </div>
         <div className="header-actions">
           <a className="header-link-button" href={PREPRINT_URL} target="_blank" rel="noreferrer">Publication</a>
@@ -1647,8 +1668,10 @@ export default function DiurnalExplorer() {
             </section>
           ) : null}
 
-          {activeTab === 'rhythmicity' ? (
+          {activeTab === 'rhythmicity' || activeTab === 'diff_rhythmicity' ? (
             <RhythmicityPanel
+              key={activeTab}
+              category={activeTab === 'diff_rhythmicity' ? 'differential' : 'rhythmicity'}
               currentGene={gene}
               metadata={metadata}
               rhythmGeneInput={rhythmGeneInput}

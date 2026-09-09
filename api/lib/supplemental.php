@@ -7,6 +7,33 @@ function rhythm_source_order(): array
     return array('S1', 'S2', 'S10', 'S3', 'S6');
 }
 
+/**
+ * Groups the supplementary tables into the two families surfaced as separate
+ * tabs in the UI: plain rhythmicity (RG) and differential rhythmicity (DRG).
+ */
+function rhythm_category_sources(): array
+{
+    return array(
+        'rhythmicity' => array('S1', 'S2'),
+        'differential' => array('S10', 'S3', 'S6'),
+    );
+}
+
+/**
+ * Resolves a `source` request value to the concrete list of source ids to
+ * filter on. Accepts a category token ('rhythmicity' / 'differential'), a
+ * single table id ('S1'…), or 'all' / anything else for no filter.
+ */
+function rhythm_resolve_sources(string $source): array
+{
+    $categories = rhythm_category_sources();
+    $lower = strtolower(trim($source));
+    if (isset($categories[$lower])) return $categories[$lower];
+    $upper = strtoupper(trim($source));
+    if (in_array($upper, rhythm_source_order(), true)) return array($upper);
+    return array();
+}
+
 function supplemental_gene_search(string $query, int $limit): array
 {
     return search_gene_table(open_database('supplemental'), $query, $limit);
@@ -26,12 +53,22 @@ function supplemental_metadata(): array
     }
     $settings = read_key_value_table($pdo, 'settings');
     $rows = db_all($pdo, 'SELECT s.source_id, s.label, s.sort_order, COUNT(r.result_id) AS row_count FROM sources s LEFT JOIN rhythmicity_results r ON r.source_id = s.source_id GROUP BY s.source_id, s.label, s.sort_order ORDER BY s.sort_order');
+    $categoryBySource = array();
+    foreach (rhythm_category_sources() as $category => $ids) {
+        foreach ($ids as $id) $categoryBySource[$id] = $category;
+    }
     $sources = array();
     $rowCount = 0;
     foreach ($rows as $row) {
         $count = (int) $row['row_count'];
         $rowCount += $count;
-        $sources[] = array('table_id' => (string) $row['source_id'], 'label' => (string) $row['label'], 'row_count' => $count);
+        $id = (string) $row['source_id'];
+        $sources[] = array(
+            'table_id' => $id,
+            'label' => (string) $row['label'],
+            'row_count' => $count,
+            'category' => $categoryBySource[$id] ?? 'rhythmicity',
+        );
     }
     return array(
         'available' => true,
@@ -52,8 +89,10 @@ function rhythm_safe_threshold($value): float
 
 function rhythm_source(string $source): string
 {
-    $source = strtoupper(trim($source));
-    return in_array($source, rhythm_source_order(), true) ? $source : 'all';
+    $lower = strtolower(trim($source));
+    if (isset(rhythm_category_sources()[$lower])) return $lower;
+    $upper = strtoupper(trim($source));
+    return in_array($upper, rhythm_source_order(), true) ? $upper : 'all';
 }
 
 function rhythm_row_matches_cluster(array $row, string $cluster): bool
@@ -110,9 +149,15 @@ function rhythm_fetch_rows(PDO $pdo, int $geneId, float $threshold, string $sour
 {
     $params = array('gene_id' => $geneId, 'threshold' => $threshold);
     $where = array('r.gene_id = :gene_id', 'r.significance IS NOT NULL', 'r.significance < :threshold');
-    if ($source !== 'all') {
-        $where[] = 'r.source_id = :source';
-        $params['source'] = $source;
+    $sourceList = rhythm_resolve_sources($source);
+    if (count($sourceList)) {
+        $placeholders = array();
+        foreach ($sourceList as $index => $code) {
+            $key = 'src' . $index;
+            $placeholders[] = ':' . $key;
+            $params[$key] = $code;
+        }
+        $where[] = 'r.source_id IN (' . implode(', ', $placeholders) . ')';
     }
     if ($basicOnly) {
         $where[] = "r.source_id IN ('S1','S2')";
@@ -129,7 +174,8 @@ function rhythm_fetch_rows(PDO $pdo, int $geneId, float $threshold, string $sour
 function rhythm_balanced_rows(array $rows, int $limit, string $source): array
 {
     $limit = max(1, min(5000, $limit));
-    if (count($rows) <= $limit || $source !== 'all') return array_slice($rows, 0, $limit);
+    $singleSource = count(rhythm_resolve_sources($source)) === 1;
+    if (count($rows) <= $limit || $singleSource) return array_slice($rows, 0, $limit);
     $bySource = array();
     foreach ($rows as $row) {
         $bySource[(string) $row['source_id']][] = $row;
