@@ -324,7 +324,7 @@ function LoadingApp({ message }) {
     <div className="app-shell single-panel">
       <header className="app-header">
         <div>
-          <p className="brand-kicker"><a href="https://desplatslab.org/" target="_blank" rel="noreferrer">Desplats Lab</a> × <a href="https://brainome.ucsd.edu/" target="_blank" rel="noreferrer">Mukamel Lab</a> · UC San Diego</p>
+          <p className="brand-kicker"><a href="https://desplatslab.org/" target="_blank" rel="noreferrer">Desplats Lab</a> × <a href="https://brainome.ucsd.edu/" target="_blank" rel="noreferrer">Mukamel Lab</a> · UC San Diego and The Ohio State University</p>
           <h1>Spatio-Temporal Atlas of the Diurnal Mouse Brain Transcriptome</h1>
           <p className="subtitle">Spatial transcriptomics of 24-hour brain transcription in healthy and APP23 mouse brain</p>
         </div>
@@ -367,11 +367,12 @@ function AboutPanel() {
           <h3>Contact</h3>
           <p>Alon Gelber (<a href="mailto:agelber@ucsd.edu">agelber@ucsd.edu</a>)</p>
           <p>Eran Mukamel (<a href="mailto:emukamel@ucsd.edu">emukamel@ucsd.edu</a>)</p>
-          <p>Paula Desplats (<a href="mailto:pdesplat@ucsd.edu">pdesplat@ucsd.edu</a>)</p>
+          <p>Paula Desplats (<a href="mailto:paula.desplats@osumc.edu">paula.desplats@osumc.edu</a>)</p>
+	  <p>Daniel Carlin (<a href="mailto:daniel.carlin@osumc.edu">daniel.carlin@osumc.edu</a>)</p>
         </article>
         <article className="about-card">
           <h3>Labs</h3>
-          <p><a href="https://desplatslab.org/" target="_blank" rel="noreferrer">Desplats Lab</a> at UCSD</p>
+          <p><a href="https://desplatslab.org/" target="_blank" rel="noreferrer">Desplats Lab</a> at OSU</p>
           <p><a href="https://brainome.ucsd.edu/" target="_blank" rel="noreferrer">Mukamel Lab</a> at UCSD</p>
         </article>
       </div>
@@ -1510,7 +1511,7 @@ export default function DiurnalExplorer() {
                 }}
                 aria-label="Gene suggestions"
               >
-                <option value="" disabled>{geneOptions.length ? 'Select a suggested gene' : 'No suggestions'}</option>
+                <option value="" disabled>{geneOptions.length ? 'Select a gene' : 'No suggestions'}</option>
                 {geneOptions.map((option) => <option key={option} value={option}>{option}</option>)}
               </select>
               <div className="gene-button-row">
@@ -1608,6 +1609,15 @@ export default function DiurnalExplorer() {
                     ))}
                   </div>
                   <div className="spatial-legend" dangerouslySetInnerHTML={{ __html: spatialPayload.legend || '' }} />
+                  <div className="gene-button-row">
+                    <a
+                      className="download-button"
+                      href={apiUrl('/spatial.csv', { gene: spatialPayload.gene })}
+                      download={`spatial_mean_${cleanFilename(spatialPayload.gene)}.csv`}
+                    >
+                      Download CSV
+                    </a>
+                  </div>
                 </>
               ) : null}
             </section>

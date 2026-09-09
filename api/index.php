@@ -94,6 +94,12 @@ try {
         json_response(diurnal_spatial_payload($gene, $gamma));
     }
 
+    if ($route === 'spatial.csv') {
+        $gene = request_string('gene', 'Dbp');
+        $filename = 'spatial_mean_' . preg_replace('/[^A-Za-z0-9._-]+/', '_', $gene) . '.csv';
+        text_response(diurnal_spatial_csv($gene), 'text/csv; charset=utf-8', 200, array('Content-Disposition' => 'attachment; filename="' . $filename . '"'));
+    }
+
     if ($route === 'rhythmicity/genes') {
         $query = request_string('q', '');
         $limit = request_int('limit', 100, 1, 500);

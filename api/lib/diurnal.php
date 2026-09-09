@@ -581,3 +581,36 @@ function diurnal_spatial_payload(string $gene, float $gamma): array
         'legend' => spatial_legend_svg((float) $min, (float) $max, $gamma),
     );
 }
+
+function diurnal_spatial_csv(string $gene): string
+{
+    $pdo = open_database('diurnal');
+    $resolved = require_diurnal_gene($pdo, $gene);
+    $rows = db_all($pdo, "SELECT c.code AS region, c.label AS region_label, gt.code AS genotype, gt.label AS genotype_label, a.code AS age, a.label AS age_label, sm.mean_value\n"
+        . "FROM spatial_means sm\n"
+        . "JOIN clusters c ON c.cluster_id = sm.cluster_id\n"
+        . "JOIN genotypes gt ON gt.genotype_id = sm.genotype_id\n"
+        . "JOIN ages a ON a.age_id = sm.age_id\n"
+        . "WHERE sm.gene_id = :gene_id\n"
+        . "ORDER BY gt.sort_order, a.sort_order, c.sort_order", array('gene_id' => (int) $resolved['gene_id']));
+
+    $columns = array('gene', 'region', 'region_label', 'genotype', 'genotype_label', 'age', 'age_label', 'log2_normalized_count');
+    $out = fopen('php://temp', 'r+');
+    fputcsv($out, $columns, ',', '"', '\\');
+    foreach ($rows as $row) {
+        fputcsv($out, array(
+            $resolved['gene'],
+            $row['region'],
+            $row['region_label'],
+            $row['genotype'],
+            $row['genotype_label'],
+            $row['age'],
+            $row['age_label'],
+            (float) $row['mean_value'],
+        ), ',', '"', '\\');
+    }
+    rewind($out);
+    $text = stream_get_contents($out);
+    fclose($out);
+    return (string) $text;
+}
