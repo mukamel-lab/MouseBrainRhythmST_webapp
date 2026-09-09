@@ -1456,7 +1456,7 @@ export default function DiurnalExplorer() {
       <header className="app-header">
         <div className="header-main">
           <div>
-            <p className="brand-kicker"><a href="https://desplatslab.org/" target="_blank" rel="noreferrer">Desplats Lab</a> × <a href="https://brainome.ucsd.edu/" target="_blank" rel="noreferrer">Mukamel Lab</a> · UC San Diego</p>
+            <p className="brand-kicker"><a href="https://desplatslab.org/" target="_blank" rel="noreferrer">Desplats Lab</a> × <a href="https://brainome.ucsd.edu/" target="_blank" rel="noreferrer">Mukamel Lab</a> · UC San Diego and The Ohio State University</p>
             <h1>Spatio-Temporal Atlas of the Diurnal Mouse Brain Transcriptome</h1>
             <p className="subtitle">Spatial transcriptomics of 24-hour brain transcription in healthy and APP23 mouse brain.</p>
           </div>
