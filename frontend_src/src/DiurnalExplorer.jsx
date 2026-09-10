@@ -723,7 +723,7 @@ function RhythmicityPanel({
                 type="number"
                 min="0.000001"
                 max="0.1"
-                step="0.01"
+                step="any"
                 value={rhythmThreshold}
                 onChange={(event) => setRhythmThreshold(Number(event.target.value) || DEFAULT_RHYTHMICITY_THRESHOLD)}
               />
