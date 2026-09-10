@@ -528,7 +528,7 @@ function RhythmicityResultsTable({ rows = [], labelCluster = (value) => value, s
                   <td>{displayValue(drgRegion(row))}</td>
                   <td>{displayValue(group1)}</td>
                   <td>{displayValue(group2)}</td>
-                  {significance}
+                  <td><strong>{displayValue(row.significance_display)}</strong></td>
                   {pvalue}
                   <td>{displayValue(row.amplitude_display || row.amplitude)}</td>
                   <td>{displayValue(row.phase_hr_display || row.phase_hr)}</td>
