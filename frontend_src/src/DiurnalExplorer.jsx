@@ -145,13 +145,18 @@ function drgRegion(row) {
   return label;
 }
 
+// Value of one `key=value` segment of the detail string (e.g. baseMean, t_s).
+function detailValue(row, name) {
+  const target = name.toLowerCase();
+  const part = detailParts(row).find((entry) => entry.key.toLowerCase() === target);
+  return part ? part.value : '';
+}
+
 function sortValue(row, key, labelCluster) {
   if (key === 'result') return row.result_type || '';
   if (key === 'context') return row.context_display || labelClusterPhrase(row.context, labelCluster) || '';
   if (key === 'significance') return Number(row.significance ?? Number.POSITIVE_INFINITY);
   if (key === 'pvalue') return Number(row.p_value ?? row.pvalue ?? Number.POSITIVE_INFINITY);
-  if (key === 'amp_phase') return ampPhaseText(row);
-  if (key === 'detail') return row.detail_display || row.detail || '';
   if (key === 'amp1') return Number(row.amplitude ?? Number.NaN);
   if (key === 'phase1') return Number(row.phase_hr ?? Number.NaN);
   if (key === 'amp2') return Number(row.amplitude_2 ?? Number.NaN);
@@ -160,6 +165,9 @@ function sortValue(row, key, labelCluster) {
   if (key === 'region') return drgRegion(row);
   if (key === 'cluster1') return comparisonGroups(row)[0];
   if (key === 'cluster2') return comparisonGroups(row)[1];
+  if (key === 'base_mean') return Number(detailValue(row, 'baseMean') || Number.NaN);
+  if (key === 't_s') return Number(detailValue(row, 't_s') || Number.NaN);
+  if (key === 't_c') return Number(detailValue(row, 't_c') || Number.NaN);
   return '';
 }
 
@@ -220,24 +228,6 @@ function optionLabel(metadata, variable, value) {
     if (normalized === 'F') return 'Female';
   }
   return String(metadata?.labels?.[variable]?.[text] || text);
-}
-
-function ampPhaseText(row) {
-  const primary = [];
-  const amplitude = row.amplitude_display || row.amplitude;
-  const phaseHr = row.phase_hr_display || row.phase_hr;
-  const amplitude2 = row.amplitude_2_display || row.amplitude_2;
-  const phaseHr2 = row.phase_hr_2_display || row.phase_hr_2;
-  if (amplitude) primary.push(`amp ${amplitude}`);
-  if (phaseHr) primary.push(`phase ${phaseHr} h`);
-  const secondary = [];
-  if (amplitude2) secondary.push(`amp ${amplitude2}`);
-  if (phaseHr2) secondary.push(`phase ${phaseHr2} h`);
-  if (!primary.length && !secondary.length) return '—';
-  const chunks = [];
-  if (primary.length) chunks.push(primary.join(', '));
-  if (secondary.length) chunks.push(`second: ${secondary.join(', ')}`);
-  return chunks.join('; ');
 }
 
 function splitRole(index, count) {
@@ -449,9 +439,10 @@ function RhythmicitySourceBadges({ counts = {} }) {
   );
 }
 
-function RhythmicityResultsTable({ rows = [], labelCluster = (value) => value, split = false }) {
+function RhythmicityResultsTable({ rows = [], labelCluster = (value) => value, category = 'rhythmicity' }) {
   const [sortConfig, setSortConfig] = useState({ key: '', direction: 'none' });
-  const columns = split
+  const isDrg = category === 'differential';
+  const columns = isDrg
     ? [
         ['result', 'Result'],
         ['age', 'Age'],
@@ -470,8 +461,11 @@ function RhythmicityResultsTable({ rows = [], labelCluster = (value) => value, s
         ['context', 'Context'],
         ['significance', 'FDR/padj'],
         ['pvalue', 'p value'],
-        ['amp_phase', 'Amplitude / phase'],
-        ['detail', 'Details'],
+        ['amp1', 'Amplitude'],
+        ['phase1', 'Phase (h)'],
+        ['base_mean', 'baseMean'],
+        ['t_s', 't_s'],
+        ['t_c', 't_c'],
       ];
   const sortedRows = useMemo(() => {
     if (!sortConfig.key || sortConfig.direction === 'none') return rows;
@@ -502,7 +496,7 @@ function RhythmicityResultsTable({ rows = [], labelCluster = (value) => value, s
   if (!rows.length) return null;
   return (
     <div className="results-table-wrap">
-      <table className={`results-table sortable-table${split ? ' results-table--wide' : ''}`}>
+      <table className="results-table sortable-table results-table--wide">
         <thead>
           <tr>
             {columns.map(([key, label]) => (
@@ -516,10 +510,7 @@ function RhythmicityResultsTable({ rows = [], labelCluster = (value) => value, s
         </thead>
         <tbody>
           {sortedRows.map((row, index) => {
-            const context = <td>{displayValue(row.context_display || labelClusterPhrase(row.context, labelCluster))}</td>;
-            const significance = <td><strong>{displayValue(row.significance_display)}</strong><br /><span>{row.significance_metric}</span></td>;
-            const pvalue = <td>{displayValue(row.pvalue_display)}</td>;
-            if (split) {
+            if (isDrg) {
               const [group1, group2] = comparisonGroups(row);
               return (
                 <tr key={`${row.table_id}-${row.sheet}-${row.context}-${index}`}>
@@ -529,7 +520,7 @@ function RhythmicityResultsTable({ rows = [], labelCluster = (value) => value, s
                   <td>{displayValue(group1)}</td>
                   <td>{displayValue(group2)}</td>
                   <td><strong>{displayValue(row.significance_display)}</strong></td>
-                  {pvalue}
+                  <td>{displayValue(row.pvalue_display)}</td>
                   <td>{displayValue(row.amplitude_display || row.amplitude)}</td>
                   <td>{displayValue(row.phase_hr_display || row.phase_hr)}</td>
                   <td>{displayValue(row.amplitude_2_display || row.amplitude_2)}</td>
@@ -540,11 +531,14 @@ function RhythmicityResultsTable({ rows = [], labelCluster = (value) => value, s
             return (
               <tr key={`${row.table_id}-${row.sheet}-${row.context}-${index}`}>
                 <td>{row.result_type}</td>
-                {context}
-                {significance}
-                {pvalue}
-                <td>{ampPhaseText(row)}</td>
-                <td className="detail-cell">{displayValue(row.detail_display || row.detail)}</td>
+                <td>{displayValue(row.context_display || labelClusterPhrase(row.context, labelCluster))}</td>
+                <td><strong>{displayValue(row.significance_display)}</strong></td>
+                <td>{displayValue(row.pvalue_display)}</td>
+                <td>{displayValue(row.amplitude_display || row.amplitude)}</td>
+                <td>{displayValue(row.phase_hr_display || row.phase_hr)}</td>
+                <td>{displayValue(detailValue(row, 'baseMean'))}</td>
+                <td>{displayValue(detailValue(row, 't_s'))}</td>
+                <td>{displayValue(detailValue(row, 't_c'))}</td>
               </tr>
             );
           })}
@@ -756,7 +750,7 @@ function RhythmicityPanel({
           </div>
           <RhythmicitySourceBadges counts={rhythmPayload.source_counts} />
           {rhythmPayload.limited ? <p className="help-text">The table is limited for browser performance. Download the TSV for more rows.</p> : null}
-          {rows.length ? <RhythmicityResultsTable rows={rows} labelCluster={labelCluster} split={category === 'differential'} /> : <div className="empty-results">No rows passed the current table and significance filters.</div>}
+          {rows.length ? <RhythmicityResultsTable rows={rows} labelCluster={labelCluster} category={category} /> : <div className="empty-results">No rows passed the current table and significance filters.</div>}
         </>
       ) : null}
     </section>
