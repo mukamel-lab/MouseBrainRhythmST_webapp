@@ -138,6 +138,21 @@ try {
         text_response(supplemental_tsv($gene, $threshold, $source, $limit), 'text/tab-separated-values; charset=utf-8', 200, array('Content-Disposition' => 'attachment; filename="' . $filename . '"'));
     }
 
+    if ($route === 'rhythmicity/top') {
+        $source = rhythm_source(request_string('source', 'rhythmicity'));
+        $threshold = rhythm_safe_threshold(request_string('threshold', '0.1'));
+        $limit = request_int('limit', 25, 1, 500);
+        json_response(rhythm_top_genes_payload($source, $threshold, $limit));
+    }
+
+    if ($route === 'rhythmicity/top.tsv') {
+        $source = rhythm_source(request_string('source', 'rhythmicity'));
+        $threshold = rhythm_safe_threshold(request_string('threshold', '0.1'));
+        $limit = request_int('limit', 25, 1, 500);
+        $filename = 'top_genes_' . preg_replace('/[^A-Za-z0-9._-]+/', '_', $source) . '.tsv';
+        text_response(rhythm_top_tsv($source, $threshold, $limit), 'text/tab-separated-values; charset=utf-8', 200, array('Content-Disposition' => 'attachment; filename="' . $filename . '"'));
+    }
+
     if ($route === 'hippocampus-dv/metadata') {
         json_response(dv_metadata());
     }

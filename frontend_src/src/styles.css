@@ -40,7 +40,7 @@ h1 { margin: 0; font-size: 1.65rem; font-weight: 650; }
 .layout.full-width-layout { grid-template-columns: minmax(0, 1fr); }
 .controls, .content { background: var(--panel); border: 1px solid var(--border); border-radius: .75rem; box-shadow: 0 1px 2px rgba(15, 23, 42, .04); }
 .controls { padding: 1rem; align-self: start; position: sticky; top: 1rem; max-height: calc(100vh - 2rem); overflow: auto; }
-.content { min-width: 0; padding: 1rem; max-width: 1200px; margin-left: auto; margin-right: auto; }
+.content { width: 100%; min-width: 0; padding: 1rem; max-width: 1200px; margin-left: auto; margin-right: auto; }
 .single-panel .content, .loading-card { margin: 1rem; }
 .control-label, .fieldset legend { display: block; margin-bottom: .35rem; font-size: .9rem; font-weight: 700; }
 .text-input { width: 100%; border: 1px solid var(--border); border-radius: .4rem; background: #fff; color: #17212b; padding: .55rem .65rem; }
@@ -132,10 +132,14 @@ h1 { margin: 0; font-size: 1.65rem; font-weight: 650; }
 .gene-message-ok { border-color: #b7dec5; background: #edf9f0; color: #1f5d31; }
 button:disabled { cursor: not-allowed; opacity: .65; }
 
+.rhythm-mode-toggle { display: flex; gap: .5rem; margin-bottom: .75rem; }
+.mode-toggle-button { font-weight: 700; }
+.mode-toggle-button.active { background: #eef5ff; border-color: #b9d5ff; color: #174ea6; }
 .rhythm-search-card { border: 1px solid var(--border); border-radius: .65rem; padding: .9rem; background: #fbfcfd; margin-bottom: 1rem; }
 .rhythm-search-form { display: grid; gap: .75rem; }
 .rhythm-search-row { display: grid; grid-template-columns: minmax(180px, 1fr) auto auto; gap: .5rem; align-items: center; }
 .rhythm-filter-row { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(140px, 180px); gap: .75rem; align-items: end; }
+.rhythm-filter-row--triple { grid-template-columns: minmax(220px, 1fr) minmax(140px, 180px) minmax(130px, 160px); }
 .rhythm-filter-row label span { display: block; margin-bottom: .3rem; font-size: .8rem; font-weight: 700; color: var(--muted); }
 .threshold-input { padding: .43rem .55rem; }
 .result-summary { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin: .5rem 0 .75rem; }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { apiUrl, asArray, fetchAllenIsh, fetchDiurnalPlot, fetchGenes, fetchHippocampusDv, fetchHippocampusDvGenes, fetchJson, fetchRhythmicity, fetchRostralCaudal, fetchRostralCaudalGenes, fetchRhythmicityBasic, resolveGene } from './api';
+import { apiUrl, asArray, fetchAllenIsh, fetchDiurnalPlot, fetchGenes, fetchHippocampusDv, fetchHippocampusDvGenes, fetchJson, fetchRhythmicity, fetchRhythmicityTop, fetchRostralCaudal, fetchRostralCaudalGenes, fetchRhythmicityBasic, resolveGene } from './api';
 import NonrhythmicPanel from './NonrhythmicPanel.jsx';
 import RhythmicityPlot from './plot/RhythmicityPlot.jsx';
 import RostralCaudalPlot from './plot/RostralCaudalPlot.jsx';
@@ -15,6 +15,7 @@ const RAW_DATA_DOWNLOAD_URL = 'https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?ac
 const DEFAULT_COLOR_BY = 'region';
 const DEFAULT_SPLIT_BY = [];
 const DEFAULT_RHYTHMICITY_THRESHOLD = 0.1;
+const DEFAULT_RHYTHMICITY_TOP_LIMIT = 25;
 const PANEL_KEYS = ['map_ntg_7', 'map_ntg_14', 'map_app_7', 'map_app_14'];
 
 const DEFAULT_CLUSTER_LABELS = {
@@ -153,6 +154,7 @@ function detailValue(row, name) {
 }
 
 function sortValue(row, key, labelCluster) {
+  if (key === 'gene') return row.gene || '';
   if (key === 'result') return row.result_type || '';
   if (key === 'context') return row.context_display || labelClusterPhrase(row.context, labelCluster) || '';
   if (key === 'significance') return Number(row.significance ?? Number.POSITIVE_INFINITY);
@@ -439,10 +441,10 @@ function RhythmicitySourceBadges({ counts = {} }) {
   );
 }
 
-function RhythmicityResultsTable({ rows = [], labelCluster = (value) => value, category = 'rhythmicity' }) {
+function RhythmicityResultsTable({ rows = [], labelCluster = (value) => value, category = 'rhythmicity', showGene = false }) {
   const [sortConfig, setSortConfig] = useState({ key: '', direction: 'none' });
   const isDrg = category === 'differential';
-  const columns = isDrg
+  const columns = (isDrg
     ? [
         ['result', 'Result'],
         ['age', 'Age'],
@@ -466,7 +468,8 @@ function RhythmicityResultsTable({ rows = [], labelCluster = (value) => value, c
         ['base_mean', 'baseMean'],
         ['t_s', 't_s'],
         ['t_c', 't_c'],
-      ];
+      ]);
+  if (showGene) columns.unshift(['gene', 'Gene']);
   const sortedRows = useMemo(() => {
     if (!sortConfig.key || sortConfig.direction === 'none') return rows;
     const direction = sortConfig.direction === 'asc' ? 1 : -1;
@@ -514,6 +517,7 @@ function RhythmicityResultsTable({ rows = [], labelCluster = (value) => value, c
               const [group1, group2] = comparisonGroups(row);
               return (
                 <tr key={`${row.table_id}-${row.sheet}-${row.context}-${index}`}>
+                  {showGene ? <td>{displayValue(row.gene)}</td> : null}
                   <td>{row.result_type}</td>
                   <td>{displayValue(row.age)}</td>
                   <td>{displayValue(drgRegion(row))}</td>
@@ -530,6 +534,7 @@ function RhythmicityResultsTable({ rows = [], labelCluster = (value) => value, c
             }
             return (
               <tr key={`${row.table_id}-${row.sheet}-${row.context}-${index}`}>
+                {showGene ? <td>{displayValue(row.gene)}</td> : null}
                 <td>{row.result_type}</td>
                 <td>{displayValue(row.context_display || labelClusterPhrase(row.context, labelCluster))}</td>
                 <td><strong>{displayValue(row.significance_display)}</strong></td>
@@ -637,10 +642,43 @@ const RHYTHMICITY_CATEGORIES = {
   },
 };
 
+function RhythmTableThresholdFields({ category, categoryInfo, sources, rhythmSource, setRhythmSource, rhythmThreshold, setRhythmThreshold, extraField = null }) {
+  return (
+    <div className={`rhythm-filter-row${extraField ? ' rhythm-filter-row--triple' : ''}`}>
+      <label>
+        <span>Table</span>
+        <select value={rhythmSource} onChange={(event) => setRhythmSource(event.target.value)}>
+          <option value={category}>{categoryInfo.allLabel}</option>
+          {sources.map((source) => (
+            <option key={source.table_id} value={source.table_id}>
+              {source.label} ({formatCount(source.row_count)} rows)
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        <span>Significance cutoff</span>
+        <input
+          className="text-input threshold-input"
+          type="number"
+          min="0.000001"
+          max="0.1"
+          step="any"
+          value={rhythmThreshold}
+          onChange={(event) => setRhythmThreshold(Number(event.target.value) || DEFAULT_RHYTHMICITY_THRESHOLD)}
+        />
+      </label>
+      {extraField}
+    </div>
+  );
+}
+
 function RhythmicityPanel({
   category = 'rhythmicity',
   currentGene,
   metadata,
+  rhythmMode,
+  setRhythmMode,
   rhythmGeneInput,
   setRhythmGeneInput,
   rhythmQuery,
@@ -651,12 +689,17 @@ function RhythmicityPanel({
   setRhythmThreshold,
   rhythmPayload,
   rhythmError,
+  rhythmTopLimit,
+  setRhythmTopLimit,
+  rhythmTopPayload,
+  rhythmTopError,
   labelCluster,
 }) {
   const categoryInfo = RHYTHMICITY_CATEGORIES[category] || RHYTHMICITY_CATEGORIES.rhythmicity;
   const allSources = Array.isArray(metadata?.rhythmicity?.sources) ? metadata.rhythmicity.sources : [];
   const sources = allSources.filter((source) => (source.category || 'rhythmicity') === category);
   const rows = Array.isArray(rhythmPayload?.rows) ? rhythmPayload.rows : [];
+  const topRows = Array.isArray(rhythmTopPayload?.rows) ? rhythmTopPayload.rows : [];
   const thresholdDisplay = Number(rhythmThreshold).toPrecision(2);
   const downloadUrl = apiUrl('/rhythmicity.tsv', {
     gene: rhythmPayload?.gene || rhythmQuery || rhythmGeneInput || currentGene,
@@ -664,6 +707,41 @@ function RhythmicityPanel({
     source: rhythmSource,
     limit: 5000,
   });
+  const topDownloadUrl = apiUrl('/rhythmicity/top.tsv', {
+    source: rhythmSource,
+    threshold: rhythmThreshold,
+    limit: rhythmTopLimit,
+  });
+  const isTopMode = rhythmMode === 'top';
+  const topLimitField = (
+    <label>
+      <span>Top N genes</span>
+      <input
+        className="text-input threshold-input"
+        type="number"
+        min="1"
+        max="500"
+        step="1"
+        value={rhythmTopLimit}
+        onChange={(event) => {
+          const next = Math.round(Number(event.target.value));
+          setRhythmTopLimit(Number.isFinite(next) ? Math.min(500, Math.max(1, next)) : DEFAULT_RHYTHMICITY_TOP_LIMIT);
+        }}
+      />
+    </label>
+  );
+  const sourceFields = (
+    <RhythmTableThresholdFields
+      category={category}
+      categoryInfo={categoryInfo}
+      sources={sources}
+      rhythmSource={rhythmSource}
+      setRhythmSource={setRhythmSource}
+      rhythmThreshold={rhythmThreshold}
+      setRhythmThreshold={setRhythmThreshold}
+      extraField={isTopMode ? topLimitField : null}
+    />
+  );
 
   function submitSearch(event) {
     event.preventDefault();
@@ -674,85 +752,107 @@ function RhythmicityPanel({
 
   return (
     <section className="tab-panel active" aria-label={`${categoryInfo.title} results`}>
-      {rhythmError ? <div className="error-banner">Rhythmicity search failed. {rhythmError}</div> : null}
-      <div className="rhythm-search-card">
-        <form className="rhythm-search-form" onSubmit={submitSearch}>
-          <label className="control-label" htmlFor="rhythmGeneInput">{categoryInfo.prompt}</label>
-          <div className="rhythm-search-row">
-            <input
-              id="rhythmGeneInput"
-              className="text-input"
-              value={rhythmGeneInput}
-              onChange={(event) => setRhythmGeneInput(event.target.value)}
-              placeholder="Gene symbol, e.g. Dbp"
-              spellCheck="false"
-            />
-            <button type="submit" className="primary-button">Search</button>
-            <button
-              type="button"
-              onClick={() => {
-                setRhythmGeneInput(currentGene);
-                setRhythmQuery(currentGene);
-              }}
-            >
-              Use current plot gene
-            </button>
-          </div>
-          <div className="rhythm-filter-row">
-            <label>
-              <span>Table</span>
-              <select value={rhythmSource} onChange={(event) => setRhythmSource(event.target.value)}>
-                <option value={category}>{categoryInfo.allLabel}</option>
-                {sources.map((source) => (
-                  <option key={source.table_id} value={source.table_id}>
-                    {source.label} ({formatCount(source.row_count)} rows)
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>Significance cutoff</span>
-              <input
-                className="text-input threshold-input"
-                type="number"
-                min="0.000001"
-                max="0.1"
-                step="any"
-                value={rhythmThreshold}
-                onChange={(event) => setRhythmThreshold(Number(event.target.value) || DEFAULT_RHYTHMICITY_THRESHOLD)}
-              />
-            </label>
-          </div>
-        </form>
-        <p className="methods-note">
-          {categoryInfo.note} &lt; {thresholdDisplay}.
-        </p>
+      <div className="rhythm-mode-toggle" role="tablist" aria-label="Query mode">
+        <button type="button" role="tab" aria-selected={!isTopMode} className={`mode-toggle-button${!isTopMode ? ' active' : ''}`} onClick={() => setRhythmMode('gene')}>
+          Search by gene
+        </button>
+        <button type="button" role="tab" aria-selected={isTopMode} className={`mode-toggle-button${isTopMode ? ' active' : ''}`} onClick={() => setRhythmMode('top')}>
+          Top genes by FDR
+        </button>
       </div>
 
-      {!rhythmPayload && !rhythmError ? <div className="loading">Loading results…</div> : null}
-      {rhythmPayload && !rhythmPayload.available ? <div className="error-banner">No rhythmicity index was found on the backend.</div> : null}
-      {rhythmPayload && rhythmPayload.available && !rhythmPayload.found ? (
-        <div className="empty-results">
-          <h2>No exact table match for “{rhythmPayload.input}”</h2>
-          {Array.isArray(rhythmPayload.suggestions) && rhythmPayload.suggestions.length ? (
-            <p>Suggestions: {rhythmPayload.suggestions.slice(0, 10).join(', ')}</p>
-          ) : <p>No similar gene symbols were found in the indexed tables.</p>}
-        </div>
-      ) : null}
-      {rhythmPayload && rhythmPayload.found ? (
+      {isTopMode ? (
         <>
-          <div className="result-summary">
-            <div>
-              <h2>{rhythmPayload.gene}</h2>
-              <p>{formatCount(rhythmPayload.count)} significant result{Number(rhythmPayload.count) === 1 ? '' : 's'} found. Showing {formatCount(rhythmPayload.displayed_count)}.</p>
-            </div>
-            {rows.length ? <a className="download-button" href={downloadUrl} download={`${category === 'differential' ? 'differential_rhythmicity' : 'rhythmicity'}_${cleanFilename(rhythmPayload.gene)}.tsv`}>Download TSV</a> : null}
+          {rhythmTopError ? <div className="error-banner">Top-genes lookup failed. {rhythmTopError}</div> : null}
+          <div className="rhythm-search-card">
+            {sourceFields}
+            <p className="methods-note">
+              The {formatCount(rhythmTopLimit)} genes with the lowest FDR/padj in the selected table (one row per gene,
+              its most significant hit), among rows with FDR/padj &lt; {thresholdDisplay}.
+            </p>
           </div>
-          <RhythmicitySourceBadges counts={rhythmPayload.source_counts} />
-          {rhythmPayload.limited ? <p className="help-text">The table is limited for browser performance. Download the TSV for more rows.</p> : null}
-          {rows.length ? <RhythmicityResultsTable rows={rows} labelCluster={labelCluster} category={category} /> : <div className="empty-results">No rows passed the current table and significance filters.</div>}
+
+          {!rhythmTopPayload && !rhythmTopError ? <div className="loading">Loading top genes…</div> : null}
+          {rhythmTopPayload && !rhythmTopPayload.available ? <div className="error-banner">No rhythmicity index was found on the backend.</div> : null}
+          {rhythmTopPayload && rhythmTopPayload.available ? (
+            <>
+              <div className="result-summary">
+                <div>
+                  <h2>Top {formatCount(rhythmTopPayload.count)} gene{rhythmTopPayload.count === 1 ? '' : 's'}</h2>
+                  <p>Ranked by FDR/padj, ascending.</p>
+                </div>
+                {topRows.length ? (
+                  <a className="download-button" href={topDownloadUrl} download={`top_genes_${cleanFilename(rhythmSource)}.tsv`}>Download TSV</a>
+                ) : null}
+              </div>
+              <RhythmicitySourceBadges counts={rhythmTopPayload.source_counts} />
+              {topRows.length ? (
+                <RhythmicityResultsTable rows={topRows} labelCluster={labelCluster} category={category} showGene />
+              ) : (
+                <div className="empty-results">No genes passed the current table and significance filters.</div>
+              )}
+            </>
+          ) : null}
         </>
-      ) : null}
+      ) : (
+        <>
+          {rhythmError ? <div className="error-banner">Rhythmicity search failed. {rhythmError}</div> : null}
+          <div className="rhythm-search-card">
+            <form className="rhythm-search-form" onSubmit={submitSearch}>
+              <label className="control-label" htmlFor="rhythmGeneInput">{categoryInfo.prompt}</label>
+              <div className="rhythm-search-row">
+                <input
+                  id="rhythmGeneInput"
+                  className="text-input"
+                  value={rhythmGeneInput}
+                  onChange={(event) => setRhythmGeneInput(event.target.value)}
+                  placeholder="Gene symbol, e.g. Dbp"
+                  spellCheck="false"
+                />
+                <button type="submit" className="primary-button">Search</button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRhythmGeneInput(currentGene);
+                    setRhythmQuery(currentGene);
+                  }}
+                >
+                  Use current plot gene
+                </button>
+              </div>
+              {sourceFields}
+            </form>
+            <p className="methods-note">
+              {categoryInfo.note} &lt; {thresholdDisplay}.
+            </p>
+          </div>
+
+          {!rhythmPayload && !rhythmError ? <div className="loading">Loading results…</div> : null}
+          {rhythmPayload && !rhythmPayload.available ? <div className="error-banner">No rhythmicity index was found on the backend.</div> : null}
+          {rhythmPayload && rhythmPayload.available && !rhythmPayload.found ? (
+            <div className="empty-results">
+              <h2>No exact table match for “{rhythmPayload.input}”</h2>
+              {Array.isArray(rhythmPayload.suggestions) && rhythmPayload.suggestions.length ? (
+                <p>Suggestions: {rhythmPayload.suggestions.slice(0, 10).join(', ')}</p>
+              ) : <p>No similar gene symbols were found in the indexed tables.</p>}
+            </div>
+          ) : null}
+          {rhythmPayload && rhythmPayload.found ? (
+            <>
+              <div className="result-summary">
+                <div>
+                  <h2>{rhythmPayload.gene}</h2>
+                  <p>{formatCount(rhythmPayload.count)} significant result{Number(rhythmPayload.count) === 1 ? '' : 's'} found. Showing {formatCount(rhythmPayload.displayed_count)}.</p>
+                </div>
+                {rows.length ? <a className="download-button" href={downloadUrl} download={`${category === 'differential' ? 'differential_rhythmicity' : 'rhythmicity'}_${cleanFilename(rhythmPayload.gene)}.tsv`}>Download TSV</a> : null}
+              </div>
+              <RhythmicitySourceBadges counts={rhythmPayload.source_counts} />
+              {rhythmPayload.limited ? <p className="help-text">The table is limited for browser performance. Download the TSV for more rows.</p> : null}
+              {rows.length ? <RhythmicityResultsTable rows={rows} labelCluster={labelCluster} category={category} /> : <div className="empty-results">No rows passed the current table and significance filters.</div>}
+            </>
+          ) : null}
+        </>
+      )}
     </section>
   );
 }
@@ -1141,6 +1241,10 @@ export default function DiurnalExplorer() {
   const [rhythmThreshold, setRhythmThreshold] = useState(DEFAULT_RHYTHMICITY_THRESHOLD);
   const [rhythmPayload, setRhythmPayload] = useState(null);
   const [rhythmError, setRhythmError] = useState('');
+  const [rhythmMode, setRhythmMode] = useState('gene');
+  const [rhythmTopLimit, setRhythmTopLimit] = useState(DEFAULT_RHYTHMICITY_TOP_LIMIT);
+  const [rhythmTopPayload, setRhythmTopPayload] = useState(null);
+  const [rhythmTopError, setRhythmTopError] = useState('');
   const [plotBasicRhythmPayload, setPlotBasicRhythmPayload] = useState(null);
   const [plotBasicRhythmError, setPlotBasicRhythmError] = useState('');
 
@@ -1398,7 +1502,7 @@ export default function DiurnalExplorer() {
   }, [metadata, gene, includeRegion]);
 
   useEffect(() => {
-    if (!metadata || (activeTab !== 'rhythmicity' && activeTab !== 'diff_rhythmicity')) return undefined;
+    if (!metadata || rhythmMode !== 'gene' || (activeTab !== 'rhythmicity' && activeTab !== 'diff_rhythmicity')) return undefined;
     const controller = new AbortController();
     async function loadRhythmicity() {
       try {
@@ -1421,7 +1525,32 @@ export default function DiurnalExplorer() {
     }
     loadRhythmicity();
     return () => controller.abort();
-  }, [metadata, activeTab, rhythmQuery, rhythmThreshold, rhythmSource]);
+  }, [metadata, activeTab, rhythmMode, rhythmQuery, rhythmThreshold, rhythmSource]);
+
+  useEffect(() => {
+    if (!metadata || rhythmMode !== 'top' || (activeTab !== 'rhythmicity' && activeTab !== 'diff_rhythmicity')) return undefined;
+    const controller = new AbortController();
+    async function loadTopGenes() {
+      try {
+        setRhythmTopPayload(null);
+        setRhythmTopError('');
+        setStatus('Rendering');
+        const payload = await fetchRhythmicityTop({
+          source: rhythmSource,
+          threshold: rhythmThreshold,
+          limit: rhythmTopLimit,
+        }, controller.signal);
+        setRhythmTopPayload(payload);
+        setStatus('Ready');
+      } catch (error) {
+        if (error.name === 'AbortError') return;
+        setRhythmTopError(error.message);
+        setStatus('Error');
+      }
+    }
+    loadTopGenes();
+    return () => controller.abort();
+  }, [metadata, activeTab, rhythmMode, rhythmSource, rhythmThreshold, rhythmTopLimit]);
 
   useEffect(() => {
     if (!metadata || activeTab !== 'rostral_caudal') return undefined;
@@ -1745,6 +1874,8 @@ export default function DiurnalExplorer() {
               category={activeTab === 'diff_rhythmicity' ? 'differential' : 'rhythmicity'}
               currentGene={gene}
               metadata={metadata}
+              rhythmMode={rhythmMode}
+              setRhythmMode={setRhythmMode}
               rhythmGeneInput={rhythmGeneInput}
               setRhythmGeneInput={setRhythmGeneInput}
               rhythmQuery={rhythmQuery}
@@ -1755,6 +1886,10 @@ export default function DiurnalExplorer() {
               setRhythmThreshold={setRhythmThreshold}
               rhythmPayload={rhythmPayload}
               rhythmError={rhythmError}
+              rhythmTopLimit={rhythmTopLimit}
+              setRhythmTopLimit={setRhythmTopLimit}
+              rhythmTopPayload={rhythmTopPayload}
+              rhythmTopError={rhythmTopError}
               labelCluster={labelCluster}
             />
           ) : null}

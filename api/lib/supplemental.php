@@ -346,3 +346,72 @@ function supplemental_tsv(string $gene, float $threshold, string $source, int $l
     fclose($out);
     return (string) $text;
 }
+
+/**
+ * The single most significant row per gene within the given source(s),
+ * ranked by significance (ascending) and capped to $limit genes. Used for
+ * "top N genes by FDR" browsing of one supplementary table (or a whole
+ * category of them) rather than looking up one gene at a time.
+ */
+function rhythm_top_genes_payload(string $source, float $threshold, int $limit): array
+{
+    $limit = max(1, min(500, $limit));
+    try {
+        $pdo = open_database('supplemental');
+    } catch (Throwable $error) {
+        return array('available' => false, 'source' => $source, 'threshold' => $threshold, 'limit' => $limit, 'count' => 0, 'source_counts' => array(), 'rows' => array());
+    }
+    $sourceList = rhythm_resolve_sources($source);
+    $params = array('threshold' => $threshold, 'limit' => $limit);
+    $where = array('r.significance IS NOT NULL', 'r.significance < :threshold');
+    if (count($sourceList)) {
+        $placeholders = array();
+        foreach ($sourceList as $index => $code) {
+            $key = 'src' . $index;
+            $placeholders[] = ':' . $key;
+            $params[$key] = $code;
+        }
+        $where[] = 'r.source_id IN (' . implode(', ', $placeholders) . ')';
+    }
+    $sql = 'SELECT ranked.* FROM (' . "\n"
+        . "  SELECT r.*, g.symbol AS gene_symbol,\n"
+        . "    ROW_NUMBER() OVER (PARTITION BY r.gene_id ORDER BY r.significance ASC, r.result_id ASC) AS rn\n"
+        . "  FROM rhythmicity_results r\n"
+        . "  JOIN genes g ON g.gene_id = r.gene_id\n"
+        . '  WHERE ' . implode(' AND ', $where) . "\n"
+        . ") ranked WHERE ranked.rn = 1\n"
+        . 'ORDER BY ranked.significance ASC LIMIT :limit';
+    $rows = db_all($pdo, $sql, $params);
+    $sourceCounts = array();
+    foreach ($rows as $row) {
+        $code = (string) $row['source_id'];
+        $sourceCounts[$code] = isset($sourceCounts[$code]) ? $sourceCounts[$code] + 1 : 1;
+    }
+    $mapped = array_map(function ($row) { return rhythm_map_row($row, (string) $row['gene_symbol']); }, $rows);
+    return array(
+        'available' => true,
+        'source' => $source,
+        'threshold' => $threshold,
+        'limit' => $limit,
+        'count' => count($mapped),
+        'source_counts' => $sourceCounts,
+        'rows' => $mapped,
+    );
+}
+
+function rhythm_top_tsv(string $source, float $threshold, int $limit): string
+{
+    $payload = rhythm_top_genes_payload($source, $threshold, $limit);
+    $columns = array('gene', 'table_id', 'table_name', 'result_type', 'sheet', 'context', 'cluster', 'comparison', 'genotype', 'age', 'significance_metric', 'significance', 'pvalue_metric', 'pvalue', 'amplitude', 'phase_hr', 'amplitude_2', 'phase_hr_2', 'detail');
+    $out = fopen('php://temp', 'r+');
+    fputcsv($out, $columns, "\t", '"', "\\");
+    foreach ($payload['rows'] as $row) {
+        $values = array();
+        foreach ($columns as $column) $values[] = isset($row[$column]) ? $row[$column] : '';
+        fputcsv($out, $values, "\t", '"', "\\");
+    }
+    rewind($out);
+    $text = stream_get_contents($out);
+    fclose($out);
+    return (string) $text;
+}
