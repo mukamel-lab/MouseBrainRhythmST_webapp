@@ -68,8 +68,16 @@ function rhythm_group_pair_field(string $sourceId): ?string
 
 function rhythm_source_dimensions(PDO $pdo, string $sourceId): array
 {
-    $contexts = db_all($pdo, "SELECT DISTINCT context_display AS value FROM rhythmicity_results WHERE source_id = :source AND context_display IS NOT NULL AND context_display <> '' ORDER BY context_display COLLATE NOCASE", array('source' => $sourceId));
+    $rawContexts = db_all($pdo, "SELECT DISTINCT context_display AS value FROM rhythmicity_results WHERE source_id = :source AND context_display IS NOT NULL AND context_display <> ''", array('source' => $sourceId));
     $ages = db_all($pdo, "SELECT DISTINCT age AS value FROM rhythmicity_results WHERE source_id = :source AND age IS NOT NULL AND age <> '' ORDER BY age COLLATE NOCASE", array('source' => $sourceId));
+
+    $contextSet = array();
+    foreach ($rawContexts as $row) {
+        $normalized = rhythm_normalize_vs_text((string) $row['value']);
+        if ($normalized !== '') $contextSet[$normalized] = true;
+    }
+    $contextList = array_keys($contextSet);
+    sort($contextList, SORT_NATURAL | SORT_FLAG_CASE);
 
     $pairField = rhythm_group_pair_field($sourceId) ?? 'cluster_display';
     $pairs = db_all($pdo, "SELECT DISTINCT $pairField AS value FROM rhythmicity_results WHERE source_id = :source AND $pairField IS NOT NULL AND $pairField <> ''", array('source' => $sourceId));
@@ -89,7 +97,7 @@ function rhythm_source_dimensions(PDO $pdo, string $sourceId): array
     sort($groupList, SORT_NATURAL | SORT_FLAG_CASE);
 
     return array(
-        'contexts' => array_map(function ($row) { return (string) $row['value']; }, $contexts),
+        'contexts' => $contextList,
         'ages' => array_map(function ($row) { return (string) $row['value']; }, $ages),
         'groups' => $groupList,
     );
@@ -164,6 +172,22 @@ function rhythm_row_matches_cluster(array $row, string $cluster): bool
     return false;
 }
 
+/**
+ * A handful of Cluster DRG (S3) rows have their context/comparison display
+ * text joined with an underscore instead of " vs " (e.g. "Amygdala_FP"),
+ * while every other field for the same row formats the same pair correctly
+ * ("Amygdala vs FP"). Reformat those so the underscore never surfaces.
+ */
+function rhythm_normalize_vs_text(string $value): string
+{
+    $value = trim($value);
+    if ($value === '' || stripos($value, ' vs ') !== false) return $value;
+    if (preg_match('/^([^_\s]+)_([^_\s]+)$/', $value, $match)) {
+        return $match[1] . ' vs ' . $match[2];
+    }
+    return $value;
+}
+
 function rhythm_map_row(array $row, string $gene): array
 {
     return array(
@@ -174,11 +198,11 @@ function rhythm_map_row(array $row, string $gene): array
         'sheet' => (string) ($row['sheet'] ?? ''),
         'sheet_display' => (string) ($row['sheet_display'] ?? $row['sheet'] ?? ''),
         'context' => (string) ($row['context'] ?? ''),
-        'context_display' => (string) ($row['context_display'] ?? $row['context'] ?? ''),
+        'context_display' => rhythm_normalize_vs_text((string) ($row['context_display'] ?? $row['context'] ?? '')),
         'cluster' => (string) ($row['cluster_code'] ?? ''),
         'cluster_display' => (string) ($row['cluster_display'] ?? $row['cluster_code'] ?? ''),
         'comparison' => (string) ($row['comparison'] ?? ''),
-        'comparison_display' => (string) ($row['comparison_display'] ?? $row['comparison'] ?? ''),
+        'comparison_display' => rhythm_normalize_vs_text((string) ($row['comparison_display'] ?? $row['comparison'] ?? '')),
         'genotype' => (string) ($row['genotype'] ?? ''),
         'age' => (string) ($row['age'] ?? ''),
         'significance_metric' => (string) ($row['significance_metric'] ?? ''),
@@ -430,8 +454,18 @@ function rhythm_top_genes_payload(string $source, float $threshold, int $limit, 
     }
     $context = trim($context);
     if ($context !== '') {
-        $where[] = 'r.context_display = :context';
-        $params['context'] = $context;
+        // The dropdown offers the normalized "A vs B" form (see
+        // rhythm_normalize_vs_text()), but a handful of rows store that same
+        // pair underscore-joined ("A_B"); match either spelling.
+        $vsPos = stripos($context, ' vs ');
+        if ($vsPos !== false) {
+            $where[] = '(r.context_display = :context OR r.context_display = :context_alt)';
+            $params['context'] = $context;
+            $params['context_alt'] = substr($context, 0, $vsPos) . '_' . substr($context, $vsPos + 4);
+        } else {
+            $where[] = 'r.context_display = :context';
+            $params['context'] = $context;
+        }
     }
     $age = trim($age);
     if ($age !== '') {
