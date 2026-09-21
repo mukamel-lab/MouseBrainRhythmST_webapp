@@ -51,14 +51,31 @@ function supplemental_gene_resolve(string $query, int $limit = 25): array
  * single-region cluster_display is used as-is, while an "A vs B" pair
  * (cluster DRGs) has both sides split out.
  */
+/**
+ * The column that holds the "A vs B" pair a row contrasts, for the source
+ * whose two sides populate the group filter/options and the Group 1 /
+ * Group 2 result columns: cluster_code for cluster DRGs ("CA3sp vs FP"),
+ * the raw comparison for cortex-subregion and genotype DRGs ("rostral vs
+ * caudal", "APP23 vs NTG"). Sources with no contrast (plain rhythmicity)
+ * return null; their single cluster_display value is used as-is instead.
+ */
+function rhythm_group_pair_field(string $sourceId): ?string
+{
+    if ($sourceId === 'S3') return 'cluster_code';
+    if ($sourceId === 'S6' || $sourceId === 'S10') return 'comparison';
+    return null;
+}
+
 function rhythm_source_dimensions(PDO $pdo, string $sourceId): array
 {
     $contexts = db_all($pdo, "SELECT DISTINCT context_display AS value FROM rhythmicity_results WHERE source_id = :source AND context_display IS NOT NULL AND context_display <> '' ORDER BY context_display COLLATE NOCASE", array('source' => $sourceId));
     $ages = db_all($pdo, "SELECT DISTINCT age AS value FROM rhythmicity_results WHERE source_id = :source AND age IS NOT NULL AND age <> '' ORDER BY age COLLATE NOCASE", array('source' => $sourceId));
-    $clusters = db_all($pdo, "SELECT DISTINCT cluster_display AS value FROM rhythmicity_results WHERE source_id = :source AND cluster_display IS NOT NULL AND cluster_display <> '' ORDER BY cluster_display COLLATE NOCASE", array('source' => $sourceId));
+
+    $pairField = rhythm_group_pair_field($sourceId) ?? 'cluster_display';
+    $pairs = db_all($pdo, "SELECT DISTINCT $pairField AS value FROM rhythmicity_results WHERE source_id = :source AND $pairField IS NOT NULL AND $pairField <> ''", array('source' => $sourceId));
 
     $groups = array();
-    foreach ($clusters as $row) {
+    foreach ($pairs as $row) {
         $value = trim((string) $row['value']);
         if ($value === '') continue;
         if (preg_match('/^(.*?)\s+vs\.?\s+(.*)$/i', $value, $match)) {
@@ -423,10 +440,15 @@ function rhythm_top_genes_payload(string $source, float $threshold, int $limit, 
     }
     $group = trim($group);
     if ($group !== '') {
-        // A row's cluster_display is either a single region/genotype value (exact
-        // match) or an "A vs B" pair (cluster DRGs) where the group can be either
-        // side, hence the prefix/suffix LIKE alternatives.
-        $where[] = '(r.cluster_display = :group OR r.cluster_display LIKE :group_prefix OR r.cluster_display LIKE :group_suffix)';
+        // Matches whichever field holds this row's "A vs B" pair on either side
+        // (cluster_code for cluster DRGs, comparison for cortex-subregion and
+        // genotype DRGs — see rhythm_group_pair_field()), or an exact
+        // cluster_display for sources with no contrast (plain rhythmicity).
+        $where[] = '('
+            . 'r.cluster_code = :group OR r.cluster_code LIKE :group_prefix OR r.cluster_code LIKE :group_suffix'
+            . ' OR r.comparison = :group OR r.comparison LIKE :group_prefix OR r.comparison LIKE :group_suffix'
+            . ' OR r.cluster_display = :group'
+            . ')';
         $params['group'] = $group;
         $params['group_prefix'] = $group . ' vs %';
         $params['group_suffix'] = '% vs ' . $group;
