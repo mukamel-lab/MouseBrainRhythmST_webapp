@@ -408,13 +408,13 @@ function supplemental_tsv(string $gene, float $threshold, string $source, int $l
  * "top N genes by FDR" browsing of one supplementary table (or a whole
  * category of them) rather than looking up one gene at a time.
  */
-function rhythm_top_genes_payload(string $source, float $threshold, int $limit, string $context = '', string $age = '', string $group = ''): array
+function rhythm_top_genes_payload(string $source, float $threshold, int $limit, string $context = '', string $age = '', string $group = '', string $group2 = ''): array
 {
     $limit = max(1, min(500, $limit));
     try {
         $pdo = open_database('supplemental');
     } catch (Throwable $error) {
-        return array('available' => false, 'source' => $source, 'threshold' => $threshold, 'limit' => $limit, 'context' => $context, 'age' => $age, 'group' => $group, 'count' => 0, 'source_counts' => array(), 'rows' => array());
+        return array('available' => false, 'source' => $source, 'threshold' => $threshold, 'limit' => $limit, 'context' => $context, 'age' => $age, 'group' => $group, 'group2' => $group2, 'count' => 0, 'source_counts' => array(), 'rows' => array());
     }
     $sourceList = rhythm_resolve_sources($source);
     $params = array('threshold' => $threshold, 'limit' => $limit);
@@ -439,19 +439,30 @@ function rhythm_top_genes_payload(string $source, float $threshold, int $limit, 
         $params['age'] = $age;
     }
     $group = trim($group);
-    if ($group !== '') {
-        // Matches whichever field holds this row's "A vs B" pair on either side
+    $group2 = trim($group2);
+    if ($group !== '' && $group2 !== '') {
+        // Both sides picked: match this exact pair, in either order, on
+        // whichever field holds the "A vs B" pair (see rhythm_group_pair_field()).
+        $where[] = '('
+            . 'r.cluster_code IN (:pair_ab, :pair_ba)'
+            . ' OR r.comparison IN (:pair_ab, :pair_ba)'
+            . ')';
+        $params['pair_ab'] = $group . ' vs ' . $group2;
+        $params['pair_ba'] = $group2 . ' vs ' . $group;
+    } elseif ($group !== '' || $group2 !== '') {
+        // Only one side picked: match it against either side of the pair
         // (cluster_code for cluster DRGs, comparison for cortex-subregion and
-        // genotype DRGs — see rhythm_group_pair_field()), or an exact
-        // cluster_display for sources with no contrast (plain rhythmicity).
+        // genotype DRGs), or an exact cluster_display for sources with no
+        // contrast (plain rhythmicity).
+        $single = $group !== '' ? $group : $group2;
         $where[] = '('
             . 'r.cluster_code = :group OR r.cluster_code LIKE :group_prefix OR r.cluster_code LIKE :group_suffix'
             . ' OR r.comparison = :group OR r.comparison LIKE :group_prefix OR r.comparison LIKE :group_suffix'
             . ' OR r.cluster_display = :group'
             . ')';
-        $params['group'] = $group;
-        $params['group_prefix'] = $group . ' vs %';
-        $params['group_suffix'] = '% vs ' . $group;
+        $params['group'] = $single;
+        $params['group_prefix'] = $single . ' vs %';
+        $params['group_suffix'] = '% vs ' . $single;
     }
     $sql = 'SELECT ranked.* FROM (' . "\n"
         . "  SELECT r.*, g.symbol AS gene_symbol,\n"
@@ -476,15 +487,16 @@ function rhythm_top_genes_payload(string $source, float $threshold, int $limit, 
         'context' => $context,
         'age' => $age,
         'group' => $group,
+        'group2' => $group2,
         'count' => count($mapped),
         'source_counts' => $sourceCounts,
         'rows' => $mapped,
     );
 }
 
-function rhythm_top_tsv(string $source, float $threshold, int $limit, string $context = '', string $age = '', string $group = ''): string
+function rhythm_top_tsv(string $source, float $threshold, int $limit, string $context = '', string $age = '', string $group = '', string $group2 = ''): string
 {
-    $payload = rhythm_top_genes_payload($source, $threshold, $limit, $context, $age, $group);
+    $payload = rhythm_top_genes_payload($source, $threshold, $limit, $context, $age, $group, $group2);
     $columns = array('gene', 'table_id', 'table_name', 'result_type', 'sheet', 'context', 'cluster', 'comparison', 'genotype', 'age', 'significance_metric', 'significance', 'pvalue_metric', 'pvalue', 'amplitude', 'phase_hr', 'amplitude_2', 'phase_hr_2', 'detail');
     $out = fopen('php://temp', 'r+');
     fputcsv($out, $columns, "\t", '"', "\\");

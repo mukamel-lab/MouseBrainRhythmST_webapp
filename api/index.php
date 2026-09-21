@@ -145,7 +145,8 @@ try {
         $context = request_string('context', '');
         $age = request_string('age', '');
         $group = request_string('group', '');
-        json_response(rhythm_top_genes_payload($source, $threshold, $limit, $context, $age, $group));
+        $group2 = request_string('group2', '');
+        json_response(rhythm_top_genes_payload($source, $threshold, $limit, $context, $age, $group, $group2));
     }
 
     if ($route === 'rhythmicity/top.tsv') {
@@ -155,8 +156,9 @@ try {
         $context = request_string('context', '');
         $age = request_string('age', '');
         $group = request_string('group', '');
+        $group2 = request_string('group2', '');
         $filename = 'top_genes_' . preg_replace('/[^A-Za-z0-9._-]+/', '_', $source) . '.tsv';
-        text_response(rhythm_top_tsv($source, $threshold, $limit, $context, $age, $group), 'text/tab-separated-values; charset=utf-8', 200, array('Content-Disposition' => 'attachment; filename="' . $filename . '"'));
+        text_response(rhythm_top_tsv($source, $threshold, $limit, $context, $age, $group, $group2), 'text/tab-separated-values; charset=utf-8', 200, array('Content-Disposition' => 'attachment; filename="' . $filename . '"'));
     }
 
     if ($route === 'hippocampus-dv/metadata') {

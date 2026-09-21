@@ -140,6 +140,7 @@ button:disabled { cursor: not-allowed; opacity: .65; }
 .rhythm-search-row { display: grid; grid-template-columns: minmax(180px, 1fr) auto auto; gap: .5rem; align-items: center; }
 .rhythm-filter-row { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(140px, 180px); gap: .75rem; align-items: end; }
 .rhythm-filter-row--triple { grid-template-columns: minmax(220px, 1fr) minmax(140px, 180px) minmax(130px, 160px); }
+.rhythm-filter-row--quad { grid-template-columns: repeat(4, minmax(150px, 1fr)); }
 .rhythm-filter-row label span { display: block; margin-bottom: .3rem; font-size: .8rem; font-weight: 700; color: var(--muted); }
 .threshold-input { padding: .43rem .55rem; }
 .result-summary { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin: .5rem 0 .75rem; }

@@ -707,6 +707,8 @@ function RhythmicityPanel({
   setRhythmTopAge,
   rhythmTopGroup,
   setRhythmTopGroup,
+  rhythmTopGroup2,
+  setRhythmTopGroup2,
   rhythmTopPayload,
   rhythmTopError,
   labelCluster,
@@ -734,12 +736,15 @@ function RhythmicityPanel({
     context: rhythmTopContext,
     age: rhythmTopAge,
     group: rhythmTopGroup,
+    group2: rhythmTopGroup2,
   });
   const isTopMode = rhythmMode === 'top';
+  const showContrastGroupFilter = category === 'differential';
   function resetDimensionFilters() {
     setRhythmTopContext('');
     setRhythmTopAge('');
     setRhythmTopGroup('');
+    setRhythmTopGroup2('');
   }
   const topLimitField = (
     <label>
@@ -772,8 +777,10 @@ function RhythmicityPanel({
     />
   );
   const showAgeFilter = category === 'differential';
+  const dimensionFieldCount = 2 + (showAgeFilter ? 1 : 0) + (showContrastGroupFilter ? 1 : 0);
+  const groupOptionsExcluding = (excluded) => groupOptions.filter((value) => value !== excluded);
   const dimensionFilterRow = (
-    <div className={`rhythm-filter-row${showAgeFilter ? ' rhythm-filter-row--triple' : ''}`}>
+    <div className={`rhythm-filter-row${dimensionFieldCount === 3 ? ' rhythm-filter-row--triple' : dimensionFieldCount === 4 ? ' rhythm-filter-row--quad' : ''}`}>
       <label>
         <span>Context</span>
         <select value={rhythmTopContext} onChange={(event) => setRhythmTopContext(event.target.value)}>
@@ -794,9 +801,18 @@ function RhythmicityPanel({
         <span>Group</span>
         <select value={rhythmTopGroup} onChange={(event) => setRhythmTopGroup(event.target.value)}>
           <option value="">Any group</option>
-          {groupOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+          {groupOptionsExcluding(rhythmTopGroup2).map((value) => <option key={value} value={value}>{value}</option>)}
         </select>
       </label>
+      {showContrastGroupFilter ? (
+        <label>
+          <span>Contrasting group</span>
+          <select value={rhythmTopGroup2} onChange={(event) => setRhythmTopGroup2(event.target.value)}>
+            <option value="">Any group</option>
+            {groupOptionsExcluding(rhythmTopGroup).map((value) => <option key={value} value={value}>{value}</option>)}
+          </select>
+        </label>
+      ) : null}
     </div>
   );
 
@@ -827,10 +843,15 @@ function RhythmicityPanel({
             <p className="methods-note">
               The {formatCount(rhythmTopLimit)} genes with the lowest FDR/padj in the selected table (one row per gene,
               its most significant hit), among rows with FDR/padj &lt; {thresholdDisplay}
-              {rhythmTopContext || rhythmTopAge || rhythmTopGroup ? ', narrowed to' : ''}
-              {rhythmTopContext ? ` context “${rhythmTopContext}”` : ''}
-              {rhythmTopAge ? `${rhythmTopContext ? ',' : ''} age “${rhythmTopAge}”` : ''}
-              {rhythmTopGroup ? `${rhythmTopContext || rhythmTopAge ? ',' : ''} group “${rhythmTopGroup}”` : ''}
+              {(() => {
+                const clauses = [];
+                if (rhythmTopContext) clauses.push(`context “${rhythmTopContext}”`);
+                if (rhythmTopAge) clauses.push(`age “${rhythmTopAge}”`);
+                if (rhythmTopGroup && rhythmTopGroup2) clauses.push(`the contrast “${rhythmTopGroup}” vs “${rhythmTopGroup2}”`);
+                else if (rhythmTopGroup) clauses.push(`group “${rhythmTopGroup}”`);
+                else if (rhythmTopGroup2) clauses.push(`contrasting group “${rhythmTopGroup2}”`);
+                return clauses.length ? `, narrowed to ${clauses.join(', ')}` : '';
+              })()}
               .
             </p>
           </div>
@@ -1309,6 +1330,7 @@ export default function DiurnalExplorer() {
   const [rhythmTopContext, setRhythmTopContext] = useState('');
   const [rhythmTopAge, setRhythmTopAge] = useState('');
   const [rhythmTopGroup, setRhythmTopGroup] = useState('');
+  const [rhythmTopGroup2, setRhythmTopGroup2] = useState('');
   const [rhythmTopPayload, setRhythmTopPayload] = useState(null);
   const [rhythmTopError, setRhythmTopError] = useState('');
   const [plotBasicRhythmPayload, setPlotBasicRhythmPayload] = useState(null);
@@ -1608,6 +1630,7 @@ export default function DiurnalExplorer() {
           context: rhythmTopContext,
           age: rhythmTopAge,
           group: rhythmTopGroup,
+          group2: rhythmTopGroup2,
         }, controller.signal);
         setRhythmTopPayload(payload);
         setStatus('Ready');
@@ -1619,7 +1642,7 @@ export default function DiurnalExplorer() {
     }
     loadTopGenes();
     return () => controller.abort();
-  }, [metadata, activeTab, rhythmMode, rhythmSource, rhythmThreshold, rhythmTopLimit, rhythmTopContext, rhythmTopAge, rhythmTopGroup]);
+  }, [metadata, activeTab, rhythmMode, rhythmSource, rhythmThreshold, rhythmTopLimit, rhythmTopContext, rhythmTopAge, rhythmTopGroup, rhythmTopGroup2]);
 
   useEffect(() => {
     if (!metadata || activeTab !== 'rostral_caudal') return undefined;
@@ -1735,6 +1758,7 @@ export default function DiurnalExplorer() {
       setRhythmTopContext('');
       setRhythmTopAge('');
       setRhythmTopGroup('');
+      setRhythmTopGroup2('');
     }
   };
   const mainClassName = activeTab === 'about'
@@ -1967,6 +1991,8 @@ export default function DiurnalExplorer() {
               setRhythmTopAge={setRhythmTopAge}
               rhythmTopGroup={rhythmTopGroup}
               setRhythmTopGroup={setRhythmTopGroup}
+              rhythmTopGroup2={rhythmTopGroup2}
+              setRhythmTopGroup2={setRhythmTopGroup2}
               rhythmTopPayload={rhythmTopPayload}
               rhythmTopError={rhythmTopError}
               labelCluster={labelCluster}
