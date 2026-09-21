@@ -771,8 +771,9 @@ function RhythmicityPanel({
       extraField={isTopMode ? topLimitField : null}
     />
   );
+  const showAgeFilter = category === 'differential';
   const dimensionFilterRow = (
-    <div className="rhythm-filter-row rhythm-filter-row--triple">
+    <div className={`rhythm-filter-row${showAgeFilter ? ' rhythm-filter-row--triple' : ''}`}>
       <label>
         <span>Context</span>
         <select value={rhythmTopContext} onChange={(event) => setRhythmTopContext(event.target.value)}>
@@ -780,13 +781,15 @@ function RhythmicityPanel({
           {contextOptions.map((value) => <option key={value} value={value}>{value}</option>)}
         </select>
       </label>
-      <label>
-        <span>Age</span>
-        <select value={rhythmTopAge} onChange={(event) => setRhythmTopAge(event.target.value)}>
-          <option value="">Any age</option>
-          {ageOptions.map((value) => <option key={value} value={value}>{value}</option>)}
-        </select>
-      </label>
+      {showAgeFilter ? (
+        <label>
+          <span>Age</span>
+          <select value={rhythmTopAge} onChange={(event) => setRhythmTopAge(event.target.value)}>
+            <option value="">Any age</option>
+            {ageOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+          </select>
+        </label>
+      ) : null}
       <label>
         <span>Group</span>
         <select value={rhythmTopGroup} onChange={(event) => setRhythmTopGroup(event.target.value)}>
