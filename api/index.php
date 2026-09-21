@@ -142,15 +142,21 @@ try {
         $source = rhythm_source(request_string('source', 'rhythmicity'));
         $threshold = rhythm_safe_threshold(request_string('threshold', '0.1'));
         $limit = request_int('limit', 25, 1, 500);
-        json_response(rhythm_top_genes_payload($source, $threshold, $limit));
+        $context = request_string('context', '');
+        $age = request_string('age', '');
+        $group = request_string('group', '');
+        json_response(rhythm_top_genes_payload($source, $threshold, $limit, $context, $age, $group));
     }
 
     if ($route === 'rhythmicity/top.tsv') {
         $source = rhythm_source(request_string('source', 'rhythmicity'));
         $threshold = rhythm_safe_threshold(request_string('threshold', '0.1'));
         $limit = request_int('limit', 25, 1, 500);
+        $context = request_string('context', '');
+        $age = request_string('age', '');
+        $group = request_string('group', '');
         $filename = 'top_genes_' . preg_replace('/[^A-Za-z0-9._-]+/', '_', $source) . '.tsv';
-        text_response(rhythm_top_tsv($source, $threshold, $limit), 'text/tab-separated-values; charset=utf-8', 200, array('Content-Disposition' => 'attachment; filename="' . $filename . '"'));
+        text_response(rhythm_top_tsv($source, $threshold, $limit, $context, $age, $group), 'text/tab-separated-values; charset=utf-8', 200, array('Content-Disposition' => 'attachment; filename="' . $filename . '"'));
     }
 
     if ($route === 'hippocampus-dv/metadata') {

@@ -102,6 +102,10 @@ function formatCount(value) {
   return Number.isFinite(number) ? number.toLocaleString() : String(value || 0);
 }
 
+function uniqueSorted(values) {
+  return Array.from(new Set((values || []).filter(Boolean))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+}
+
 function displayValue(value, fallback = '—') {
   const text = String(value ?? '').trim();
   return text || fallback;
@@ -642,12 +646,18 @@ const RHYTHMICITY_CATEGORIES = {
   },
 };
 
-function RhythmTableThresholdFields({ category, categoryInfo, sources, rhythmSource, setRhythmSource, rhythmThreshold, setRhythmThreshold, extraField = null }) {
+function RhythmTableThresholdFields({ category, categoryInfo, sources, rhythmSource, setRhythmSource, onSourceChange, rhythmThreshold, setRhythmThreshold, extraField = null }) {
   return (
     <div className={`rhythm-filter-row${extraField ? ' rhythm-filter-row--triple' : ''}`}>
       <label>
         <span>Table</span>
-        <select value={rhythmSource} onChange={(event) => setRhythmSource(event.target.value)}>
+        <select
+          value={rhythmSource}
+          onChange={(event) => {
+            setRhythmSource(event.target.value);
+            if (onSourceChange) onSourceChange();
+          }}
+        >
           <option value={category}>{categoryInfo.allLabel}</option>
           {sources.map((source) => (
             <option key={source.table_id} value={source.table_id}>
@@ -691,6 +701,12 @@ function RhythmicityPanel({
   rhythmError,
   rhythmTopLimit,
   setRhythmTopLimit,
+  rhythmTopContext,
+  setRhythmTopContext,
+  rhythmTopAge,
+  setRhythmTopAge,
+  rhythmTopGroup,
+  setRhythmTopGroup,
   rhythmTopPayload,
   rhythmTopError,
   labelCluster,
@@ -698,6 +714,10 @@ function RhythmicityPanel({
   const categoryInfo = RHYTHMICITY_CATEGORIES[category] || RHYTHMICITY_CATEGORIES.rhythmicity;
   const allSources = Array.isArray(metadata?.rhythmicity?.sources) ? metadata.rhythmicity.sources : [];
   const sources = allSources.filter((source) => (source.category || 'rhythmicity') === category);
+  const dimensionScopeSources = rhythmSource === category ? sources : sources.filter((source) => source.table_id === rhythmSource);
+  const contextOptions = uniqueSorted(dimensionScopeSources.flatMap((source) => source.contexts || []));
+  const ageOptions = uniqueSorted(dimensionScopeSources.flatMap((source) => source.ages || []));
+  const groupOptions = uniqueSorted(dimensionScopeSources.flatMap((source) => source.groups || []));
   const rows = Array.isArray(rhythmPayload?.rows) ? rhythmPayload.rows : [];
   const topRows = Array.isArray(rhythmTopPayload?.rows) ? rhythmTopPayload.rows : [];
   const thresholdDisplay = Number(rhythmThreshold).toPrecision(2);
@@ -711,8 +731,16 @@ function RhythmicityPanel({
     source: rhythmSource,
     threshold: rhythmThreshold,
     limit: rhythmTopLimit,
+    context: rhythmTopContext,
+    age: rhythmTopAge,
+    group: rhythmTopGroup,
   });
   const isTopMode = rhythmMode === 'top';
+  function resetDimensionFilters() {
+    setRhythmTopContext('');
+    setRhythmTopAge('');
+    setRhythmTopGroup('');
+  }
   const topLimitField = (
     <label>
       <span>Top N genes</span>
@@ -737,10 +765,36 @@ function RhythmicityPanel({
       sources={sources}
       rhythmSource={rhythmSource}
       setRhythmSource={setRhythmSource}
+      onSourceChange={isTopMode ? resetDimensionFilters : undefined}
       rhythmThreshold={rhythmThreshold}
       setRhythmThreshold={setRhythmThreshold}
       extraField={isTopMode ? topLimitField : null}
     />
+  );
+  const dimensionFilterRow = (
+    <div className="rhythm-filter-row rhythm-filter-row--triple">
+      <label>
+        <span>Context</span>
+        <select value={rhythmTopContext} onChange={(event) => setRhythmTopContext(event.target.value)}>
+          <option value="">Any context</option>
+          {contextOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+        </select>
+      </label>
+      <label>
+        <span>Age</span>
+        <select value={rhythmTopAge} onChange={(event) => setRhythmTopAge(event.target.value)}>
+          <option value="">Any age</option>
+          {ageOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+        </select>
+      </label>
+      <label>
+        <span>Group</span>
+        <select value={rhythmTopGroup} onChange={(event) => setRhythmTopGroup(event.target.value)}>
+          <option value="">Any group</option>
+          {groupOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+        </select>
+      </label>
+    </div>
   );
 
   function submitSearch(event) {
@@ -766,9 +820,15 @@ function RhythmicityPanel({
           {rhythmTopError ? <div className="error-banner">Top-genes lookup failed. {rhythmTopError}</div> : null}
           <div className="rhythm-search-card">
             {sourceFields}
+            {dimensionFilterRow}
             <p className="methods-note">
               The {formatCount(rhythmTopLimit)} genes with the lowest FDR/padj in the selected table (one row per gene,
-              its most significant hit), among rows with FDR/padj &lt; {thresholdDisplay}.
+              its most significant hit), among rows with FDR/padj &lt; {thresholdDisplay}
+              {rhythmTopContext || rhythmTopAge || rhythmTopGroup ? ', narrowed to' : ''}
+              {rhythmTopContext ? ` context “${rhythmTopContext}”` : ''}
+              {rhythmTopAge ? `${rhythmTopContext ? ',' : ''} age “${rhythmTopAge}”` : ''}
+              {rhythmTopGroup ? `${rhythmTopContext || rhythmTopAge ? ',' : ''} group “${rhythmTopGroup}”` : ''}
+              .
             </p>
           </div>
 
@@ -1243,6 +1303,9 @@ export default function DiurnalExplorer() {
   const [rhythmError, setRhythmError] = useState('');
   const [rhythmMode, setRhythmMode] = useState('gene');
   const [rhythmTopLimit, setRhythmTopLimit] = useState(DEFAULT_RHYTHMICITY_TOP_LIMIT);
+  const [rhythmTopContext, setRhythmTopContext] = useState('');
+  const [rhythmTopAge, setRhythmTopAge] = useState('');
+  const [rhythmTopGroup, setRhythmTopGroup] = useState('');
   const [rhythmTopPayload, setRhythmTopPayload] = useState(null);
   const [rhythmTopError, setRhythmTopError] = useState('');
   const [plotBasicRhythmPayload, setPlotBasicRhythmPayload] = useState(null);
@@ -1539,6 +1602,9 @@ export default function DiurnalExplorer() {
           source: rhythmSource,
           threshold: rhythmThreshold,
           limit: rhythmTopLimit,
+          context: rhythmTopContext,
+          age: rhythmTopAge,
+          group: rhythmTopGroup,
         }, controller.signal);
         setRhythmTopPayload(payload);
         setStatus('Ready');
@@ -1550,7 +1616,7 @@ export default function DiurnalExplorer() {
     }
     loadTopGenes();
     return () => controller.abort();
-  }, [metadata, activeTab, rhythmMode, rhythmSource, rhythmThreshold, rhythmTopLimit]);
+  }, [metadata, activeTab, rhythmMode, rhythmSource, rhythmThreshold, rhythmTopLimit, rhythmTopContext, rhythmTopAge, rhythmTopGroup]);
 
   useEffect(() => {
     if (!metadata || activeTab !== 'rostral_caudal') return undefined;
@@ -1661,8 +1727,12 @@ export default function DiurnalExplorer() {
   const hideSidebar = ['rhythmicity', 'diff_rhythmicity', 'nonrhythmic', 'rostral_caudal', 'hippocampus'].includes(activeTab);
   const selectTab = (tab) => {
     setActiveTab(tab);
-    if (tab === 'rhythmicity') setRhythmSource('rhythmicity');
-    else if (tab === 'diff_rhythmicity') setRhythmSource('differential');
+    if (tab === 'rhythmicity' || tab === 'diff_rhythmicity') {
+      setRhythmSource(tab === 'diff_rhythmicity' ? 'differential' : 'rhythmicity');
+      setRhythmTopContext('');
+      setRhythmTopAge('');
+      setRhythmTopGroup('');
+    }
   };
   const mainClassName = activeTab === 'about'
     ? 'layout about-layout'
@@ -1888,6 +1958,12 @@ export default function DiurnalExplorer() {
               rhythmError={rhythmError}
               rhythmTopLimit={rhythmTopLimit}
               setRhythmTopLimit={setRhythmTopLimit}
+              rhythmTopContext={rhythmTopContext}
+              setRhythmTopContext={setRhythmTopContext}
+              rhythmTopAge={rhythmTopAge}
+              setRhythmTopAge={setRhythmTopAge}
+              rhythmTopGroup={rhythmTopGroup}
+              setRhythmTopGroup={setRhythmTopGroup}
               rhythmTopPayload={rhythmTopPayload}
               rhythmTopError={rhythmTopError}
               labelCluster={labelCluster}

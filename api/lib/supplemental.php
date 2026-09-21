@@ -44,6 +44,40 @@ function supplemental_gene_resolve(string $query, int $limit = 25): array
     return resolve_gene_table(open_database('supplemental'), $query, $limit);
 }
 
+/**
+ * Distinct context / age / group option values for one source, used to
+ * populate the "top genes by FDR" dimension filters. Groups are the atomic
+ * region/genotype tokens a row's cluster_display contrasts: a plain
+ * single-region cluster_display is used as-is, while an "A vs B" pair
+ * (cluster DRGs) has both sides split out.
+ */
+function rhythm_source_dimensions(PDO $pdo, string $sourceId): array
+{
+    $contexts = db_all($pdo, "SELECT DISTINCT context_display AS value FROM rhythmicity_results WHERE source_id = :source AND context_display IS NOT NULL AND context_display <> '' ORDER BY context_display COLLATE NOCASE", array('source' => $sourceId));
+    $ages = db_all($pdo, "SELECT DISTINCT age AS value FROM rhythmicity_results WHERE source_id = :source AND age IS NOT NULL AND age <> '' ORDER BY age COLLATE NOCASE", array('source' => $sourceId));
+    $clusters = db_all($pdo, "SELECT DISTINCT cluster_display AS value FROM rhythmicity_results WHERE source_id = :source AND cluster_display IS NOT NULL AND cluster_display <> '' ORDER BY cluster_display COLLATE NOCASE", array('source' => $sourceId));
+
+    $groups = array();
+    foreach ($clusters as $row) {
+        $value = trim((string) $row['value']);
+        if ($value === '') continue;
+        if (preg_match('/^(.*?)\s+vs\.?\s+(.*)$/i', $value, $match)) {
+            $groups[trim($match[1])] = true;
+            $groups[trim($match[2])] = true;
+        } else {
+            $groups[$value] = true;
+        }
+    }
+    $groupList = array_keys($groups);
+    sort($groupList, SORT_NATURAL | SORT_FLAG_CASE);
+
+    return array(
+        'contexts' => array_map(function ($row) { return (string) $row['value']; }, $contexts),
+        'ages' => array_map(function ($row) { return (string) $row['value']; }, $ages),
+        'groups' => $groupList,
+    );
+}
+
 function supplemental_metadata(): array
 {
     try {
@@ -63,11 +97,15 @@ function supplemental_metadata(): array
         $count = (int) $row['row_count'];
         $rowCount += $count;
         $id = (string) $row['source_id'];
+        $dimensions = rhythm_source_dimensions($pdo, $id);
         $sources[] = array(
             'table_id' => $id,
             'label' => (string) $row['label'],
             'row_count' => $count,
             'category' => $categoryBySource[$id] ?? 'rhythmicity',
+            'contexts' => $dimensions['contexts'],
+            'ages' => $dimensions['ages'],
+            'groups' => $dimensions['groups'],
         );
     }
     return array(
@@ -353,13 +391,13 @@ function supplemental_tsv(string $gene, float $threshold, string $source, int $l
  * "top N genes by FDR" browsing of one supplementary table (or a whole
  * category of them) rather than looking up one gene at a time.
  */
-function rhythm_top_genes_payload(string $source, float $threshold, int $limit): array
+function rhythm_top_genes_payload(string $source, float $threshold, int $limit, string $context = '', string $age = '', string $group = ''): array
 {
     $limit = max(1, min(500, $limit));
     try {
         $pdo = open_database('supplemental');
     } catch (Throwable $error) {
-        return array('available' => false, 'source' => $source, 'threshold' => $threshold, 'limit' => $limit, 'count' => 0, 'source_counts' => array(), 'rows' => array());
+        return array('available' => false, 'source' => $source, 'threshold' => $threshold, 'limit' => $limit, 'context' => $context, 'age' => $age, 'group' => $group, 'count' => 0, 'source_counts' => array(), 'rows' => array());
     }
     $sourceList = rhythm_resolve_sources($source);
     $params = array('threshold' => $threshold, 'limit' => $limit);
@@ -372,6 +410,26 @@ function rhythm_top_genes_payload(string $source, float $threshold, int $limit):
             $params[$key] = $code;
         }
         $where[] = 'r.source_id IN (' . implode(', ', $placeholders) . ')';
+    }
+    $context = trim($context);
+    if ($context !== '') {
+        $where[] = 'r.context_display = :context';
+        $params['context'] = $context;
+    }
+    $age = trim($age);
+    if ($age !== '') {
+        $where[] = 'r.age = :age';
+        $params['age'] = $age;
+    }
+    $group = trim($group);
+    if ($group !== '') {
+        // A row's cluster_display is either a single region/genotype value (exact
+        // match) or an "A vs B" pair (cluster DRGs) where the group can be either
+        // side, hence the prefix/suffix LIKE alternatives.
+        $where[] = '(r.cluster_display = :group OR r.cluster_display LIKE :group_prefix OR r.cluster_display LIKE :group_suffix)';
+        $params['group'] = $group;
+        $params['group_prefix'] = $group . ' vs %';
+        $params['group_suffix'] = '% vs ' . $group;
     }
     $sql = 'SELECT ranked.* FROM (' . "\n"
         . "  SELECT r.*, g.symbol AS gene_symbol,\n"
@@ -393,15 +451,18 @@ function rhythm_top_genes_payload(string $source, float $threshold, int $limit):
         'source' => $source,
         'threshold' => $threshold,
         'limit' => $limit,
+        'context' => $context,
+        'age' => $age,
+        'group' => $group,
         'count' => count($mapped),
         'source_counts' => $sourceCounts,
         'rows' => $mapped,
     );
 }
 
-function rhythm_top_tsv(string $source, float $threshold, int $limit): string
+function rhythm_top_tsv(string $source, float $threshold, int $limit, string $context = '', string $age = '', string $group = ''): string
 {
-    $payload = rhythm_top_genes_payload($source, $threshold, $limit);
+    $payload = rhythm_top_genes_payload($source, $threshold, $limit, $context, $age, $group);
     $columns = array('gene', 'table_id', 'table_name', 'result_type', 'sheet', 'context', 'cluster', 'comparison', 'genotype', 'age', 'significance_metric', 'significance', 'pvalue_metric', 'pvalue', 'amplitude', 'phase_hr', 'amplitude_2', 'phase_hr_2', 'detail');
     $out = fopen('php://temp', 'r+');
     fputcsv($out, $columns, "\t", '"', "\\");
