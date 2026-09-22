@@ -138,6 +138,10 @@ button:disabled { cursor: not-allowed; opacity: .65; }
 .rhythm-search-card { border: 1px solid var(--border); border-radius: .65rem; padding: .9rem; background: #fbfcfd; margin-bottom: 1rem; }
 .rhythm-search-form { display: grid; gap: .75rem; }
 .rhythm-search-row { display: grid; grid-template-columns: minmax(180px, 1fr) auto auto; gap: .5rem; align-items: center; }
+.rhythm-search-row--batch { align-items: start; }
+.gene-batch-input { resize: vertical; min-height: 2.6rem; font-family: inherit; line-height: 1.4; }
+.gene-suggestion-list { margin: .4rem 0 0; padding-left: 1.1rem; }
+.gene-suggestion-list li { margin: .15rem 0; }
 .rhythm-filter-row { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(140px, 180px); gap: .75rem; align-items: end; }
 .rhythm-filter-row--triple { grid-template-columns: minmax(220px, 1fr) minmax(140px, 180px) minmax(130px, 160px); }
 .rhythm-filter-row--quad { grid-template-columns: repeat(4, minmax(150px, 1fr)); }

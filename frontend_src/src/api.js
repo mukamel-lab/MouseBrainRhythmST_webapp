@@ -67,6 +67,10 @@ export async function fetchRhythmicity(params, signal) {
   return fetchJson('/rhythmicity', params, signal);
 }
 
+export async function fetchRhythmicityBatch(params, signal) {
+  return fetchJson('/rhythmicity/batch', params, signal);
+}
+
 export async function fetchRhythmicityBasic(params, signal) {
   return fetchJson('/rhythmicity/basic', params, signal);
 }

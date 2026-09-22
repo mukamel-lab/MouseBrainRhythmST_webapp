@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { apiUrl, asArray, fetchAllenIsh, fetchDiurnalPlot, fetchGenes, fetchHippocampusDv, fetchHippocampusDvGenes, fetchJson, fetchRhythmicity, fetchRhythmicityTop, fetchRostralCaudal, fetchRostralCaudalGenes, fetchRhythmicityBasic, resolveGene } from './api';
+import { apiUrl, asArray, fetchAllenIsh, fetchDiurnalPlot, fetchGenes, fetchHippocampusDv, fetchHippocampusDvGenes, fetchJson, fetchRhythmicityBatch, fetchRhythmicityTop, fetchRostralCaudal, fetchRostralCaudalGenes, fetchRhythmicityBasic, resolveGene } from './api';
 import NonrhythmicPanel from './NonrhythmicPanel.jsx';
 import RhythmicityPlot from './plot/RhythmicityPlot.jsx';
 import RostralCaudalPlot from './plot/RostralCaudalPlot.jsx';
@@ -721,10 +721,13 @@ function RhythmicityPanel({
   const ageOptions = uniqueSorted(dimensionScopeSources.flatMap((source) => source.ages || []));
   const groupOptions = uniqueSorted(dimensionScopeSources.flatMap((source) => source.groups || []));
   const rows = Array.isArray(rhythmPayload?.rows) ? rhythmPayload.rows : [];
+  const genesFoundList = Array.isArray(rhythmPayload?.genes_found) ? rhythmPayload.genes_found : [];
+  const genesNotFoundList = Array.isArray(rhythmPayload?.genes_not_found) ? rhythmPayload.genes_not_found : [];
+  const searchedInputs = Array.isArray(rhythmPayload?.inputs) ? rhythmPayload.inputs : [];
   const topRows = Array.isArray(rhythmTopPayload?.rows) ? rhythmTopPayload.rows : [];
   const thresholdDisplay = Number(rhythmThreshold).toPrecision(2);
-  const downloadUrl = apiUrl('/rhythmicity.tsv', {
-    gene: rhythmPayload?.gene || rhythmQuery || rhythmGeneInput || currentGene,
+  const downloadUrl = apiUrl('/rhythmicity/batch.tsv', {
+    genes: rhythmQuery || rhythmGeneInput || currentGene,
     threshold: rhythmThreshold,
     source: rhythmSource,
     limit: 5000,
@@ -884,14 +887,15 @@ function RhythmicityPanel({
           <div className="rhythm-search-card">
             <form className="rhythm-search-form" onSubmit={submitSearch}>
               <label className="control-label" htmlFor="rhythmGeneInput">{categoryInfo.prompt}</label>
-              <div className="rhythm-search-row">
-                <input
+              <div className="rhythm-search-row rhythm-search-row--batch">
+                <textarea
                   id="rhythmGeneInput"
-                  className="text-input"
+                  className="text-input gene-batch-input"
                   value={rhythmGeneInput}
                   onChange={(event) => setRhythmGeneInput(event.target.value)}
-                  placeholder="Gene symbol, e.g. Dbp"
+                  placeholder="Gene symbol(s), e.g. Dbp — or paste a batch: Dbp, Per1, Per2 (commas, spaces, or one per line)"
                   spellCheck="false"
+                  rows={2}
                 />
                 <button type="submit" className="primary-button">Search</button>
                 <button
@@ -915,9 +919,14 @@ function RhythmicityPanel({
           {rhythmPayload && !rhythmPayload.available ? <div className="error-banner">No rhythmicity index was found on the backend.</div> : null}
           {rhythmPayload && rhythmPayload.available && !rhythmPayload.found ? (
             <div className="empty-results">
-              <h2>No exact table match for “{rhythmPayload.input}”</h2>
-              {Array.isArray(rhythmPayload.suggestions) && rhythmPayload.suggestions.length ? (
-                <p>Suggestions: {rhythmPayload.suggestions.slice(0, 10).join(', ')}</p>
+              <h2>No exact match for {searchedInputs.length > 1 ? `any of ${formatCount(searchedInputs.length)} genes entered` : `“${searchedInputs[0] || ''}”`}</h2>
+              {searchedInputs.length > 1 ? <p>Searched: {searchedInputs.join(', ')}</p> : null}
+              {Object.values(rhythmPayload.not_found_suggestions || {}).some((list) => list.length) ? (
+                <ul className="gene-suggestion-list">
+                  {Object.entries(rhythmPayload.not_found_suggestions || {}).filter(([, list]) => list.length).map(([token, list]) => (
+                    <li key={token}>{token} — did you mean: {list.slice(0, 10).join(', ')}?</li>
+                  ))}
+                </ul>
               ) : <p>No similar gene symbols were found in the indexed tables.</p>}
             </div>
           ) : null}
@@ -925,14 +934,28 @@ function RhythmicityPanel({
             <>
               <div className="result-summary">
                 <div>
-                  <h2>{rhythmPayload.gene}</h2>
-                  <p>{formatCount(rhythmPayload.count)} significant result{Number(rhythmPayload.count) === 1 ? '' : 's'} found. Showing {formatCount(rhythmPayload.displayed_count)}.</p>
+                  <h2>{genesFoundList.length === 1 ? genesFoundList[0] : `${formatCount(genesFoundList.length)} genes matched`}</h2>
+                  <p>
+                    {formatCount(rhythmPayload.count)} significant result{Number(rhythmPayload.count) === 1 ? '' : 's'} found
+                    {genesFoundList.length > 1 ? ` across ${formatCount(genesFoundList.length)} genes` : ''}.
+                    Showing {formatCount(rhythmPayload.displayed_count)}.
+                  </p>
+                  {genesFoundList.length > 1 ? <p className="help-text">Matched: {genesFoundList.join(', ')}</p> : null}
+                  {genesNotFoundList.length ? <p className="help-text">Not found: {genesNotFoundList.join(', ')}</p> : null}
                 </div>
-                {rows.length ? <a className="download-button" href={downloadUrl} download={`${category === 'differential' ? 'differential_rhythmicity' : 'rhythmicity'}_${cleanFilename(rhythmPayload.gene)}.tsv`}>Download TSV</a> : null}
+                {rows.length ? (
+                  <a
+                    className="download-button"
+                    href={downloadUrl}
+                    download={`${category === 'differential' ? 'differential_rhythmicity' : 'rhythmicity'}_${genesFoundList.length === 1 ? cleanFilename(genesFoundList[0]) : `batch_${genesFoundList.length}genes`}.tsv`}
+                  >
+                    Download TSV
+                  </a>
+                ) : null}
               </div>
               <RhythmicitySourceBadges counts={rhythmPayload.source_counts} />
               {rhythmPayload.limited ? <p className="help-text">The table is limited for browser performance. Download the TSV for more rows.</p> : null}
-              {rows.length ? <RhythmicityResultsTable rows={rows} labelCluster={labelCluster} category={category} /> : <div className="empty-results">No rows passed the current table and significance filters.</div>}
+              {rows.length ? <RhythmicityResultsTable rows={rows} labelCluster={labelCluster} category={category} showGene /> : <div className="empty-results">No rows passed the current table and significance filters.</div>}
             </>
           ) : null}
         </>
@@ -1597,8 +1620,8 @@ export default function DiurnalExplorer() {
         setRhythmPayload(null);
         setRhythmError('');
         setStatus('Rendering');
-        const payload = await fetchRhythmicity({
-          gene: rhythmQuery,
+        const payload = await fetchRhythmicityBatch({
+          genes: rhythmQuery,
           threshold: rhythmThreshold,
           source: rhythmSource,
           limit: 500,

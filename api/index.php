@@ -138,6 +138,22 @@ try {
         text_response(supplemental_tsv($gene, $threshold, $source, $limit), 'text/tab-separated-values; charset=utf-8', 200, array('Content-Disposition' => 'attachment; filename="' . $filename . '"'));
     }
 
+    if ($route === 'rhythmicity/batch') {
+        $genes = request_csv('genes', array());
+        $threshold = rhythm_safe_threshold(request_string('threshold', '0.1'));
+        $source = rhythm_source(request_string('source', 'all'));
+        $limit = request_int('limit', 500, 1, min(5000, (int) app_config()['max_json_rows']));
+        json_response(supplemental_batch_search_payload($genes, $threshold, $source, $limit));
+    }
+
+    if ($route === 'rhythmicity/batch.tsv') {
+        $genes = request_csv('genes', array());
+        $threshold = rhythm_safe_threshold(request_string('threshold', '0.1'));
+        $source = rhythm_source(request_string('source', 'all'));
+        $limit = request_int('limit', 5000, 1, 5000);
+        text_response(supplemental_batch_tsv($genes, $threshold, $source, $limit), 'text/tab-separated-values; charset=utf-8', 200, array('Content-Disposition' => 'attachment; filename="rhythmicity_batch.tsv"'));
+    }
+
     if ($route === 'rhythmicity/top') {
         $source = rhythm_source(request_string('source', 'rhythmicity'));
         $threshold = rhythm_safe_threshold(request_string('threshold', '0.1'));

@@ -319,6 +319,129 @@ function supplemental_search_payload(string $input, float $threshold, string $so
     );
 }
 
+/**
+ * Splits a raw batch-search box value into distinct gene query tokens.
+ * Accepts commas, whitespace, and newlines as separators (however the box
+ * was pasted into), trims, drops blanks, and dedupes case-insensitively
+ * while keeping first-seen casing and order.
+ */
+function rhythm_split_gene_batch(string $raw, int $max = 300): array
+{
+    $tokens = preg_split('/[,\s]+/', trim($raw)) ?: array();
+    $seen = array();
+    $clean = array();
+    foreach ($tokens as $token) {
+        $token = trim($token);
+        if ($token === '') continue;
+        $key = strtoupper($token);
+        if (isset($seen[$key])) continue;
+        $seen[$key] = true;
+        $clean[] = $token;
+        if (count($clean) >= $max) break;
+    }
+    return $clean;
+}
+
+function supplemental_batch_search_payload(array $inputs, float $threshold, string $source, int $limit): array
+{
+    $inputs = rhythm_split_gene_batch(implode(',', $inputs));
+    $empty = array(
+        'available' => true, 'inputs' => $inputs, 'found' => false,
+        'genes_found' => array(), 'genes_not_found' => $inputs, 'not_found_suggestions' => array(),
+        'threshold' => $threshold, 'source' => $source,
+        'count' => 0, 'displayed_count' => 0, 'limited' => false,
+        'source_counts' => array(), 'rows' => array(),
+    );
+    if (!count($inputs)) return $empty;
+    try {
+        $pdo = open_database('supplemental');
+    } catch (Throwable $error) {
+        return array('available' => false) + $empty;
+    }
+
+    $genesFound = array();
+    $genesNotFound = array();
+    foreach ($inputs as $input) {
+        $row = db_one($pdo, 'SELECT gene_id, symbol FROM genes WHERE symbol_upper = :upper LIMIT 1', array('upper' => strtoupper($input)));
+        if ($row === null) {
+            $genesNotFound[] = $input;
+        } else {
+            $genesFound[(string) $row['symbol']] = (int) $row['gene_id'];
+        }
+    }
+    // A "did you mean" hint is only worth the extra fuzzy-search queries when
+    // there are just a few misses (typos in an otherwise-small batch); skip it
+    // for large batches where a handful of unmatched genes is expected.
+    $notFoundSuggestions = array();
+    if (count($genesNotFound) > 0 && count($genesNotFound) <= 10) {
+        foreach ($genesNotFound as $token) {
+            $notFoundSuggestions[$token] = search_gene_table($pdo, $token, 6);
+        }
+    }
+    if (!count($genesFound)) {
+        return array('genes_not_found' => $genesNotFound, 'not_found_suggestions' => $notFoundSuggestions) + $empty;
+    }
+
+    $allRows = array();
+    foreach ($genesFound as $symbol => $geneId) {
+        foreach (rhythm_fetch_rows($pdo, $geneId, $threshold, $source) as $row) {
+            $row['__gene_symbol'] = $symbol;
+            $allRows[] = $row;
+        }
+    }
+    usort($allRows, function ($a, $b) {
+        $sigA = $a['significance'] ?? null;
+        $sigB = $b['significance'] ?? null;
+        if ($sigA === $sigB) return 0;
+        if ($sigA === null) return 1;
+        if ($sigB === null) return -1;
+        return $sigA <=> $sigB;
+    });
+
+    $count = count($allRows);
+    $sourceCounts = array();
+    foreach ($allRows as $row) {
+        $code = (string) $row['source_id'];
+        $sourceCounts[$code] = isset($sourceCounts[$code]) ? $sourceCounts[$code] + 1 : 1;
+    }
+    $limit = max(1, min(5000, $limit));
+    $displayRows = array_slice($allRows, 0, $limit);
+    $mapped = array_map(function ($row) { return rhythm_map_row($row, (string) $row['__gene_symbol']); }, $displayRows);
+
+    return array(
+        'available' => true,
+        'inputs' => $inputs,
+        'found' => true,
+        'genes_found' => array_keys($genesFound),
+        'genes_not_found' => $genesNotFound,
+        'not_found_suggestions' => $notFoundSuggestions,
+        'threshold' => $threshold,
+        'source' => $source,
+        'count' => $count,
+        'displayed_count' => count($mapped),
+        'limited' => $count > count($mapped),
+        'source_counts' => $sourceCounts,
+        'rows' => $mapped,
+    );
+}
+
+function supplemental_batch_tsv(array $inputs, float $threshold, string $source, int $limit): string
+{
+    $payload = supplemental_batch_search_payload($inputs, $threshold, $source, $limit);
+    $columns = array('gene', 'table_id', 'table_name', 'result_type', 'sheet', 'context', 'cluster', 'comparison', 'genotype', 'age', 'significance_metric', 'significance', 'pvalue_metric', 'pvalue', 'amplitude', 'phase_hr', 'amplitude_2', 'phase_hr_2', 'detail');
+    $out = fopen('php://temp', 'r+');
+    fputcsv($out, $columns, "\t", '"', "\\");
+    foreach ($payload['rows'] as $row) {
+        $values = array();
+        foreach ($columns as $column) $values[] = isset($row[$column]) ? $row[$column] : '';
+        fputcsv($out, $values, "\t", '"', "\\");
+    }
+    rewind($out);
+    $text = stream_get_contents($out);
+    fclose($out);
+    return (string) $text;
+}
+
 function rhythm_basic_call(array $rows, string $genotype, string $gene): ?array
 {
     $target = strtoupper($genotype);
