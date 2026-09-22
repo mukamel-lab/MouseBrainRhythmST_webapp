@@ -506,6 +506,65 @@ function spatial_legend_svg(float $min, float $max, float $gamma): string
         . '</svg>';
 }
 
+/**
+ * Colors the spatial atlas template on a diverging scale centered at 0: a
+ * cluster's value interpolates from $negColor (at -$maxAbs) through neutral
+ * gray (at 0) to $posColor (at +$maxAbs). $gamma warps the magnitude the
+ * same way the sequential spatial-mean scale does, so small differences stay
+ * muted and larger ones stand out; clusters with no value render neutral.
+ */
+function spatial_diverging_colored_svg(array $valuesByCluster, float $maxAbs, float $gamma, string $scopeId, string $negColor, string $posColor): string
+{
+    $config = spatial_template_config();
+    $template = $config['template'];
+    $originalColors = $config['colors'];
+    $placeholders = array();
+    $replacements = array();
+    $i = 0;
+    foreach ($originalColors as $cluster => $originalColor) {
+        $placeholder = '__SPATIAL_COLOR_' . sprintf('%03d', $i++) . '__';
+        $placeholders[$originalColor] = $placeholder;
+        if (isset($valuesByCluster[$cluster]) && is_numeric($valuesByCluster[$cluster])) {
+            $value = (float) $valuesByCluster[$cluster];
+            $t = $maxAbs > 0 ? max(-1.0, min(1.0, $value / $maxAbs)) : 0.0;
+            $magnitude = pow(abs($t), $gamma);
+            $replacements[$placeholder] = $t < 0
+                ? interpolate_hex('#F2F2F2', $negColor, $magnitude)
+                : interpolate_hex('#F2F2F2', $posColor, $magnitude);
+        } else {
+            $replacements[$placeholder] = '#D9D9D9';
+        }
+    }
+    $template = str_replace(array_keys($placeholders), array_values($placeholders), $template);
+    $template = str_replace(array_keys($replacements), array_values($replacements), $template);
+    return spatial_scope_svg($template, $scopeId);
+}
+
+function spatial_diverging_legend_svg(float $maxAbs, float $gamma, string $negColor, string $posColor, string $label): string
+{
+    $width = 500;
+    $height = 70;
+    $x0 = 170;
+    $x1 = $width - 20;
+    $mid = ($x0 + $x1) / 2;
+    $stops = array();
+    for ($i = 0; $i <= 40; $i++) {
+        $u = $i / 40;
+        $t = $u * 2 - 1;
+        $magnitude = pow(abs($t), $gamma);
+        $color = $t < 0 ? interpolate_hex('#F2F2F2', $negColor, $magnitude) : interpolate_hex('#F2F2F2', $posColor, $magnitude);
+        $stops[] = '<stop offset="' . round(100 * $u, 2) . '%" stop-color="' . $color . '"/>';
+    }
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 70">'
+        . '<defs><linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">' . implode('', $stops) . '</linearGradient></defs>'
+        . '<text x="10" y="38" font-family="Arial, sans-serif" font-size="12">' . xml_escape($label) . '</text>'
+        . '<rect x="' . $x0 . '" y="22" width="' . ($x1 - $x0) . '" height="20" fill="url(#grad)" stroke="black"/>'
+        . '<text x="' . $x0 . '" y="60" font-family="Arial, sans-serif" font-size="12">' . xml_escape(svg_numeric_label(-$maxAbs)) . '</text>'
+        . '<text x="' . $mid . '" y="60" text-anchor="middle" font-family="Arial, sans-serif" font-size="12">0</text>'
+        . '<text x="' . $x1 . '" y="60" text-anchor="end" font-family="Arial, sans-serif" font-size="12">' . xml_escape(svg_numeric_label($maxAbs)) . '</text>'
+        . '</svg>';
+}
+
 function spatial_reference_label_overlay(): string
 {
     static $overlay = null;
@@ -585,30 +644,20 @@ function diurnal_spatial_reference(PDO $pdo): array
     );
 }
 
-function diurnal_spatial_payload(string $gene, float $gamma): array
+/**
+ * From spatial_means-style rows (each carrying genotype/genotype_label/
+ * genotype_order and age/age_label/age_order), figures out which genotype
+ * code is NTG vs. APP23 and which age code is the 7- vs. 14-month cohort.
+ * Shared by the mean-expression and fold-change spatial payloads so both
+ * panel sets are built from the same panel definitions.
+ */
+function diurnal_resolve_genotype_age_codes(array $rows): array
 {
-    $pdo = open_database('diurnal');
-    $resolved = require_diurnal_gene($pdo, $gene);
-    $rows = db_all($pdo, "SELECT sm.mean_value, c.code AS region, gt.code AS genotype, gt.label AS genotype_label, gt.sort_order AS genotype_order, a.code AS age, a.label AS age_label, a.sort_order AS age_order\n"
-        . "FROM spatial_means sm\n"
-        . "JOIN clusters c ON c.cluster_id = sm.cluster_id\n"
-        . "JOIN genotypes gt ON gt.genotype_id = sm.genotype_id\n"
-        . "JOIN ages a ON a.age_id = sm.age_id\n"
-        . "WHERE sm.gene_id = :gene_id\n"
-        . "ORDER BY gt.sort_order, a.sort_order, c.sort_order", array('gene_id' => (int) $resolved['gene_id']));
-    if (!count($rows)) {
-        return array('gene' => $resolved['gene'], 'gamma' => $gamma, 'limits' => array(0, 1), 'titles' => array(), 'panels' => array(), 'legend' => spatial_legend_svg(0, 1, $gamma), 'reference' => diurnal_spatial_reference($pdo));
-    }
-    $values = array_map(function ($row) { return (float) $row['mean_value']; }, $rows);
-    $min = floor(min($values));
-    $max = ceil(max($values));
-    if ($min === $max) $max = $min + 1;
-
     $genotypes = array();
     $ages = array();
     foreach ($rows as $row) {
-        $genotypes[(string) $row['genotype']] = array('label' => (string) $row['genotype_label'], 'order' => (int) $row['genotype_order']);
-        $ages[(string) $row['age']] = array('label' => (string) $row['age_label'], 'order' => (int) $row['age_order']);
+        $genotypes[(string) $row['genotype']] = array('label' => (string) ($row['genotype_label'] ?? $row['genotype']), 'order' => (int) ($row['genotype_order'] ?? 0));
+        $ages[(string) $row['age']] = array('label' => (string) ($row['age_label'] ?? $row['age']), 'order' => (int) ($row['age_order'] ?? 0));
     }
     uasort($genotypes, function ($a, $b) { return $a['order'] <=> $b['order']; });
     uasort($ages, function ($a, $b) { return $a['order'] <=> $b['order']; });
@@ -630,6 +679,43 @@ function diurnal_spatial_payload(string $gene, float $gamma): array
     }
     if ($age7 === null) $age7 = $ageCodes[0] ?? '';
     if ($age14 === null) $age14 = $ageCodes[1] ?? $age7;
+
+    return array(
+        'genotypes' => $genotypes,
+        'ages' => $ages,
+        'ntg' => $ntg,
+        'app' => $app,
+        'age7' => $age7,
+        'age14' => $age14,
+    );
+}
+
+function diurnal_spatial_payload(string $gene, float $gamma): array
+{
+    $pdo = open_database('diurnal');
+    $resolved = require_diurnal_gene($pdo, $gene);
+    $rows = db_all($pdo, "SELECT sm.mean_value, c.code AS region, gt.code AS genotype, gt.label AS genotype_label, gt.sort_order AS genotype_order, a.code AS age, a.label AS age_label, a.sort_order AS age_order\n"
+        . "FROM spatial_means sm\n"
+        . "JOIN clusters c ON c.cluster_id = sm.cluster_id\n"
+        . "JOIN genotypes gt ON gt.genotype_id = sm.genotype_id\n"
+        . "JOIN ages a ON a.age_id = sm.age_id\n"
+        . "WHERE sm.gene_id = :gene_id\n"
+        . "ORDER BY gt.sort_order, a.sort_order, c.sort_order", array('gene_id' => (int) $resolved['gene_id']));
+    if (!count($rows)) {
+        return array('gene' => $resolved['gene'], 'gamma' => $gamma, 'limits' => array(0, 1), 'titles' => array(), 'panels' => array(), 'legend' => spatial_legend_svg(0, 1, $gamma), 'reference' => diurnal_spatial_reference($pdo));
+    }
+    $values = array_map(function ($row) { return (float) $row['mean_value']; }, $rows);
+    $min = floor(min($values));
+    $max = ceil(max($values));
+    if ($min === $max) $max = $min + 1;
+
+    $codes = diurnal_resolve_genotype_age_codes($rows);
+    $genotypes = $codes['genotypes'];
+    $ages = $codes['ages'];
+    $ntg = $codes['ntg'];
+    $app = $codes['app'];
+    $age7 = $codes['age7'];
+    $age14 = $codes['age14'];
 
     $panelSpecs = array(
         'map_ntg_7' => array($ntg, $age7),
@@ -660,6 +746,141 @@ function diurnal_spatial_payload(string $gene, float $gamma): array
         'legend' => spatial_legend_svg((float) $min, (float) $max, $gamma),
         'reference' => diurnal_spatial_reference($pdo),
     );
+}
+
+function diurnal_genotype_colors(PDO $pdo): array
+{
+    $rows = db_all($pdo, 'SELECT code, color FROM genotypes');
+    $colors = array();
+    foreach ($rows as $row) $colors[(string) $row['code']] = (string) $row['color'];
+    return $colors;
+}
+
+/**
+ * Same panel layout as diurnal_spatial_payload(), but each panel is the
+ * APP23-minus-NTG difference in log2(normalized counts) — i.e. the log2
+ * fold change — at one age, on a scale diverging from NTG's color (down in
+ * APP23) through neutral to APP23's color (up in APP23). Both ages share one
+ * symmetric scale so the two panels stay comparable.
+ */
+function diurnal_spatial_fc_payload(string $gene, float $gamma): array
+{
+    $pdo = open_database('diurnal');
+    $resolved = require_diurnal_gene($pdo, $gene);
+    $rows = db_all($pdo, "SELECT sm.mean_value, c.code AS region, gt.code AS genotype, gt.label AS genotype_label, gt.sort_order AS genotype_order, a.code AS age, a.label AS age_label, a.sort_order AS age_order\n"
+        . "FROM spatial_means sm\n"
+        . "JOIN clusters c ON c.cluster_id = sm.cluster_id\n"
+        . "JOIN genotypes gt ON gt.genotype_id = sm.genotype_id\n"
+        . "JOIN ages a ON a.age_id = sm.age_id\n"
+        . "WHERE sm.gene_id = :gene_id\n"
+        . "ORDER BY gt.sort_order, a.sort_order, c.sort_order", array('gene_id' => (int) $resolved['gene_id']));
+    $emptyLegend = spatial_diverging_legend_svg(1.0, $gamma, '#0072B5', '#BC3C29', 'log2 fold change (APP23 / NTG)');
+    if (!count($rows)) {
+        return array('gene' => $resolved['gene'], 'gamma' => $gamma, 'limits' => array(-1, 1), 'titles' => array(), 'panels' => array(), 'legend' => $emptyLegend, 'reference' => diurnal_spatial_reference($pdo));
+    }
+
+    $codes = diurnal_resolve_genotype_age_codes($rows);
+    $ages = $codes['ages'];
+    $ntg = $codes['ntg'];
+    $app = $codes['app'];
+    $age7 = $codes['age7'];
+    $age14 = $codes['age14'];
+    $genotypeColors = diurnal_genotype_colors($pdo);
+    $negColor = $genotypeColors[$ntg] ?? '#0072B5';
+    $posColor = $genotypeColors[$app] ?? '#BC3C29';
+
+    $meansByAgeGenotypeRegion = array();
+    foreach ($rows as $row) {
+        $meansByAgeGenotypeRegion[(string) $row['age']][(string) $row['genotype']][(string) $row['region']] = (float) $row['mean_value'];
+    }
+
+    $ageSpecs = array('map_fc_7' => $age7, 'map_fc_14' => $age14);
+    $fcByPanel = array();
+    $maxAbs = 0.0;
+    foreach ($ageSpecs as $key => $ageCode) {
+        $appValues = $meansByAgeGenotypeRegion[$ageCode][$app] ?? array();
+        $ntgValues = $meansByAgeGenotypeRegion[$ageCode][$ntg] ?? array();
+        $fc = array();
+        foreach ($appValues as $region => $appValue) {
+            if (!array_key_exists($region, $ntgValues)) continue;
+            $diff = $appValue - $ntgValues[$region];
+            $fc[$region] = $diff;
+            $maxAbs = max($maxAbs, abs($diff));
+        }
+        $fcByPanel[$key] = $fc;
+    }
+    if ($maxAbs <= 0) $maxAbs = 1.0;
+    $scale = $maxAbs >= 2 ? 1.0 : ($maxAbs >= 0.5 ? 0.5 : 0.1);
+    $maxAbs = ceil($maxAbs / $scale) * $scale;
+
+    $legendLabel = 'log2 fold change (APP23 / NTG)';
+    $titles = array();
+    $panels = array();
+    foreach ($ageSpecs as $key => $ageCode) {
+        $ageLabel = isset($ages[$ageCode]) ? $ages[$ageCode]['label'] : $ageCode;
+        $titles[$key] = $ageLabel . ' (APP23 vs NTG)';
+        $panels[$key] = '<div class="spatial-svg">' . spatial_diverging_colored_svg($fcByPanel[$key], $maxAbs, $gamma, $key, $negColor, $posColor) . '</div>';
+    }
+    return array(
+        'gene' => $resolved['gene'],
+        'gamma' => $gamma,
+        'limits' => array(-$maxAbs, $maxAbs),
+        'titles' => $titles,
+        'panels' => $panels,
+        'legend' => spatial_diverging_legend_svg($maxAbs, $gamma, $negColor, $posColor, $legendLabel),
+        'reference' => diurnal_spatial_reference($pdo),
+    );
+}
+
+function diurnal_spatial_fc_csv(string $gene): string
+{
+    $pdo = open_database('diurnal');
+    $resolved = require_diurnal_gene($pdo, $gene);
+    $rows = db_all($pdo, "SELECT sm.mean_value, c.code AS region, c.label AS region_label, gt.code AS genotype, gt.label AS genotype_label, gt.sort_order AS genotype_order, a.code AS age, a.label AS age_label, a.sort_order AS age_order\n"
+        . "FROM spatial_means sm\n"
+        . "JOIN clusters c ON c.cluster_id = sm.cluster_id\n"
+        . "JOIN genotypes gt ON gt.genotype_id = sm.genotype_id\n"
+        . "JOIN ages a ON a.age_id = sm.age_id\n"
+        . "WHERE sm.gene_id = :gene_id", array('gene_id' => (int) $resolved['gene_id']));
+    $codes = diurnal_resolve_genotype_age_codes($rows);
+    $ntg = $codes['ntg'];
+    $app = $codes['app'];
+
+    $meansByAgeGenotypeRegion = array();
+    $regionLabels = array();
+    $ageLabels = array();
+    foreach ($rows as $row) {
+        $region = (string) $row['region'];
+        $age = (string) $row['age'];
+        $meansByAgeGenotypeRegion[$age][(string) $row['genotype']][$region] = (float) $row['mean_value'];
+        $regionLabels[$region] = (string) $row['region_label'];
+        $ageLabels[$age] = (string) $row['age_label'];
+    }
+
+    $columns = array('gene', 'region', 'region_label', 'age', 'age_label', 'app23_log2_normalized_count', 'ntg_log2_normalized_count', 'log2_fold_change');
+    $out = fopen('php://temp', 'r+');
+    fputcsv($out, $columns, ',', '"', '\\');
+    foreach ($meansByAgeGenotypeRegion as $age => $byGenotype) {
+        $appValues = $byGenotype[$app] ?? array();
+        $ntgValues = $byGenotype[$ntg] ?? array();
+        $regions = array_intersect_key($appValues, $ntgValues);
+        foreach ($regions as $region => $appValue) {
+            fputcsv($out, array(
+                $resolved['gene'],
+                $region,
+                $regionLabels[$region] ?? $region,
+                $age,
+                $ageLabels[$age] ?? $age,
+                $appValue,
+                $ntgValues[$region],
+                $appValue - $ntgValues[$region],
+            ), ',', '"', '\\');
+        }
+    }
+    rewind($out);
+    $text = stream_get_contents($out);
+    fclose($out);
+    return (string) $text;
 }
 
 function diurnal_spatial_csv(string $gene): string

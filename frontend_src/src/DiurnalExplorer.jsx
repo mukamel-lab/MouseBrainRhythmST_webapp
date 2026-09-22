@@ -17,6 +17,7 @@ const DEFAULT_SPLIT_BY = [];
 const DEFAULT_RHYTHMICITY_THRESHOLD = 0.1;
 const DEFAULT_RHYTHMICITY_TOP_LIMIT = 25;
 const PANEL_KEYS = ['map_ntg_7', 'map_ntg_14', 'map_app_7', 'map_app_14'];
+const SPATIAL_FC_PANEL_KEYS = ['map_fc_7', 'map_fc_14'];
 
 const DEFAULT_CLUSTER_LABELS = {
   l23: 'Cortex Layer 2/3',
@@ -346,6 +347,7 @@ function Tabs({ active, onActive }) {
       <button type="button" className={`tab ${active === 'about' ? 'active' : ''}`} onClick={() => onActive('about')}>About</button>
       <button type="button" className={`tab ${active === 'diurnal' ? 'active' : ''}`} onClick={() => onActive('diurnal')}>Diurnal Expression</button>
       <button type="button" className={`tab ${active === 'spatial' ? 'active' : ''}`} onClick={() => onActive('spatial')}>Spatial mean</button>
+      <button type="button" className={`tab ${active === 'spatial_fc' ? 'active' : ''}`} onClick={() => onActive('spatial_fc')}>Spatial fold change</button>
       <button type="button" className={`tab ${active === 'rhythmicity' ? 'active' : ''}`} onClick={() => onActive('rhythmicity')}>Rhythmicity statistics</button>
       <button type="button" className={`tab ${active === 'diff_rhythmicity' ? 'active' : ''}`} onClick={() => onActive('diff_rhythmicity')}>Differential rhythmicity</button>
       <button type="button" className={`tab ${active === 'rostral_caudal' ? 'active' : ''}`} onClick={() => onActive('rostral_caudal')}>Rostral vs. caudal cortex</button>
@@ -1336,7 +1338,10 @@ export default function DiurnalExplorer() {
   const [splitBy, setSplitBy] = useState([]);
   const [gamma, setGamma] = useState(1.7);
   const [spatialPayload, setSpatialPayload] = useState(null);
+  const [gammaFc, setGammaFc] = useState(1.7);
+  const [spatialFcPayload, setSpatialFcPayload] = useState(null);
   const [spatialError, setSpatialError] = useState('');
+  const [spatialFcError, setSpatialFcError] = useState('');
   const [plotPayload, setPlotPayload] = useState(null);
   const [plotError, setPlotError] = useState('');
   const [refreshToken, setRefreshToken] = useState(0);
@@ -1400,6 +1405,7 @@ export default function DiurnalExplorer() {
     setColorBy(String(defaults.color_by || DEFAULT_COLOR_BY));
     setSplitBy(normalizeDefaults(nextMetadata, 'split_by').length ? normalizeDefaults(nextMetadata, 'split_by') : DEFAULT_SPLIT_BY);
     setGamma(Number(defaults.gamma || 1.7));
+    setGammaFc(Number(defaults.gamma || 1.7));
     setRhythmGeneInput(nextGene);
     setRhythmQuery(nextGene);
     setRhythmSource('rhythmicity');
@@ -1588,6 +1594,27 @@ export default function DiurnalExplorer() {
     loadSpatial();
     return () => controller.abort();
   }, [metadata, activeTab, plotParams.gene, gamma, refreshToken]);
+
+  useEffect(() => {
+    if (!metadata || activeTab !== 'spatial_fc') return undefined;
+    const controller = new AbortController();
+    async function loadSpatialFc() {
+      try {
+        setSpatialFcPayload(null);
+        setSpatialFcError('');
+        setStatus('Rendering');
+        const payload = await fetchJson('/spatial-fc', { gene: plotParams.gene, gamma: gammaFc }, controller.signal);
+        setSpatialFcPayload(payload);
+        setStatus('Ready');
+      } catch (error) {
+        if (error.name === 'AbortError') return;
+        setSpatialFcError(error.message);
+        setStatus('Error');
+      }
+    }
+    loadSpatialFc();
+    return () => controller.abort();
+  }, [metadata, activeTab, plotParams.gene, gammaFc, refreshToken]);
 
   useEffect(() => {
     if (!metadata) return undefined;
@@ -1813,7 +1840,7 @@ export default function DiurnalExplorer() {
       <main className={mainClassName}>
         {activeTab !== 'about' && !hideSidebar ? (
         <aside className="controls" aria-label="Plot controls">
-          {activeTab === 'diurnal' || activeTab === 'spatial' ? (
+          {activeTab === 'diurnal' || activeTab === 'spatial' || activeTab === 'spatial_fc' ? (
             <>
               <label className="control-label" htmlFor="geneInput">Gene</label>
               <input
@@ -1887,6 +1914,13 @@ export default function DiurnalExplorer() {
             <>
               <label className="control-label" htmlFor="gamma">Spatial scale contrast <span className="gamma-value">{Number(gamma).toFixed(1)}</span></label>
               <input id="gamma" type="range" min="0.5" max="3" step="0.1" value={gamma} onChange={(event) => setGamma(Number(event.target.value))} />
+            </>
+          ) : null}
+
+          {activeTab === 'spatial_fc' ? (
+            <>
+              <label className="control-label" htmlFor="gammaFc">Spatial scale contrast <span className="gamma-value">{Number(gammaFc).toFixed(1)}</span></label>
+              <input id="gammaFc" type="range" min="0.5" max="3" step="0.1" value={gammaFc} onChange={(event) => setGammaFc(Number(event.target.value))} />
             </>
           ) : null}
         </aside>
@@ -1979,6 +2013,64 @@ export default function DiurnalExplorer() {
                       className="download-button"
                       href={apiUrl('/spatial.csv', { gene: spatialPayload.gene })}
                       download={`spatial_mean_${cleanFilename(spatialPayload.gene)}.csv`}
+                    >
+                      Download CSV
+                    </a>
+                  </div>
+                </>
+              ) : null}
+            </section>
+          ) : null}
+
+          {activeTab === 'spatial_fc' ? (
+            <section className="tab-panel active" aria-label="Spatial fold change">
+              {spatialFcError ? <div className="error-banner">Spatial fold-change request failed. {spatialFcError}</div> : null}
+              {!spatialFcPayload ? <div className="loading">Loading spatial fold-change maps…</div> : null}
+              {spatialFcPayload ? (
+                <>
+                  <p className="methods-note">
+                    Each map shows the log2 fold change in expression between APP23 and NTG mice at one age
+                    (log2 mean APP23 − log2 mean NTG, from the same spatial means as the Spatial mean tab).
+                    Red regions are higher in APP23; blue regions are higher in NTG.
+                  </p>
+                  <div className="spatial-grid spatial-grid--fc">
+                    {SPATIAL_FC_PANEL_KEYS.map((key) => (
+                      <article className="spatial-card" key={key}>
+                        <h2>{spatialFcPayload.titles?.[key] || key}</h2>
+                        <div dangerouslySetInnerHTML={{ __html: spatialFcPayload.panels?.[key] || '<div class="spatial-svg empty">No data</div>' }} />
+                      </article>
+                    ))}
+                  </div>
+                  <div className="spatial-legend" dangerouslySetInnerHTML={{ __html: spatialFcPayload.legend || '' }} />
+                  {spatialFcPayload.reference ? (
+                    <div className="spatial-reference">
+                      <h2>Region reference map</h2>
+                      <p className="methods-note">
+                        Each panel above shows the same coronal brain section. Use the reference below to identify
+                        which anatomical region corresponds to each area of the map.
+                      </p>
+                      <div className="spatial-reference-body">
+                        <div
+                          className="spatial-reference-map"
+                          dangerouslySetInnerHTML={{ __html: spatialFcPayload.reference.map || '' }}
+                        />
+                        <ul className="spatial-reference-legend">
+                          {(spatialFcPayload.reference.regions || []).map((region) => (
+                            <li key={region.code}>
+                              <span className="swatch" style={{ background: region.color }} />
+                              <span className="code">{region.code}</span>
+                              <span className="label">{region.label}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  ) : null}
+                  <div className="gene-button-row">
+                    <a
+                      className="download-button"
+                      href={apiUrl('/spatial-fc.csv', { gene: spatialFcPayload.gene })}
+                      download={`spatial_fc_${cleanFilename(spatialFcPayload.gene)}.csv`}
                     >
                       Download CSV
                     </a>

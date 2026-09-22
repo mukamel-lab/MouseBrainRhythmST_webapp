@@ -100,6 +100,18 @@ try {
         text_response(diurnal_spatial_csv($gene), 'text/csv; charset=utf-8', 200, array('Content-Disposition' => 'attachment; filename="' . $filename . '"'));
     }
 
+    if ($route === 'spatial-fc') {
+        $gene = request_string('gene', 'Dbp');
+        $gamma = request_float('gamma', 1.7, 0.5, 3.0);
+        json_response(diurnal_spatial_fc_payload($gene, $gamma));
+    }
+
+    if ($route === 'spatial-fc.csv') {
+        $gene = request_string('gene', 'Dbp');
+        $filename = 'spatial_fc_' . preg_replace('/[^A-Za-z0-9._-]+/', '_', $gene) . '.csv';
+        text_response(diurnal_spatial_fc_csv($gene), 'text/csv; charset=utf-8', 200, array('Content-Disposition' => 'attachment; filename="' . $filename . '"'));
+    }
+
     if ($route === 'rhythmicity/genes') {
         $query = request_string('q', '');
         $limit = request_int('limit', 100, 1, 500);
