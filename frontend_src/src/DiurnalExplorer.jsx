@@ -113,12 +113,6 @@ function displayValue(value, fallback = '—') {
 }
 
 
-function sourceTableLabel(value) {
-  const text = String(value ?? '').trim();
-  const match = text.match(/^S(\d+)$/i);
-  return match ? `Sup Table ${match[1]}` : text;
-}
-
 function detailParts(row) {
   const raw = String(row.detail_display || row.detail || '').trim();
   if (!raw) return [];
@@ -435,13 +429,15 @@ function AboutPanel() {
   );
 }
 
-function RhythmicitySourceBadges({ counts = {} }) {
+function RhythmicitySourceBadges({ counts = {}, sources = [] }) {
   const entries = Object.entries(counts || {});
   if (!entries.length) return null;
+  const labelByTableId = {};
+  sources.forEach((source) => { labelByTableId[source.table_id] = source.label; });
   return (
     <div className="source-badges" aria-label="Rhythmicity source counts">
       {entries.map(([source, count]) => (
-        <span className="source-badge" key={source}>{sourceTableLabel(source)}: {formatCount(count)}</span>
+        <span className="source-badge" key={source}>{labelByTableId[source] || source}: {formatCount(count)}</span>
       ))}
     </div>
   );
@@ -590,7 +586,7 @@ function BasicRhythmicityCall({ label, result, threshold }) {
           <dd>{result.phase_hr ? `${result.phase_hr} h` : '—'}</dd>
         </div>
       </dl>
-      <p className="basic-rhythm-source">{sourceTableLabel(result.table_id)}: {result.table_name}</p>
+      <p className="basic-rhythm-source">{result.table_name}</p>
     </div>
   );
 }
@@ -638,13 +634,13 @@ const RHYTHMICITY_CATEGORIES = {
     title: 'Rhythmicity statistics',
     prompt: 'Search rhythmic-gene tables by gene',
     allLabel: 'All rhythmic-gene tables',
-    note: 'Rhythmic genes indexed from Sup Table 1 (NTG) and Sup Table 2 (APP23), filtered to rows with the table-specific FDR-like value or padj',
+    note: 'Rhythmic genes indexed from the NTG rhythmic genes and APP23 rhythmic genes tables, filtered to rows with the table-specific FDR-like value or padj',
   },
   differential: {
     title: 'Differential rhythmicity statistics',
     prompt: 'Search differential-rhythmicity tables by gene',
     allLabel: 'All differential-rhythmicity tables',
-    note: 'Differentially rhythmic genes indexed from Sup Table 3 (cluster), Sup Table 6 (cortex subregion), and Sup Table 10 (APP23 vs NTG genotype), filtered to rows with the table-specific FDR-like value or padj',
+    note: 'Differentially rhythmic genes indexed from the Cluster DRGs, Cortex subregion DRGs, and APP23 vs NTG genotype DRGs tables, filtered to rows with the table-specific FDR-like value or padj',
   },
 };
 
@@ -877,7 +873,7 @@ function RhythmicityPanel({
                   <a className="download-button" href={topDownloadUrl} download={`top_genes_${cleanFilename(rhythmSource)}.tsv`}>Download TSV</a>
                 ) : null}
               </div>
-              <RhythmicitySourceBadges counts={rhythmTopPayload.source_counts} />
+              <RhythmicitySourceBadges counts={rhythmTopPayload.source_counts} sources={sources} />
               {topRows.length ? (
                 <RhythmicityResultsTable rows={topRows} labelCluster={labelCluster} category={category} showGene />
               ) : (
@@ -958,7 +954,7 @@ function RhythmicityPanel({
                   </a>
                 ) : null}
               </div>
-              <RhythmicitySourceBadges counts={rhythmPayload.source_counts} />
+              <RhythmicitySourceBadges counts={rhythmPayload.source_counts} sources={sources} />
               {rhythmPayload.limited ? <p className="help-text">The table is limited for browser performance. Download the TSV for more rows.</p> : null}
               {rows.length ? <RhythmicityResultsTable rows={rows} labelCluster={labelCluster} category={category} showGene /> : <div className="empty-results">No rows passed the current table and significance filters.</div>}
             </>
