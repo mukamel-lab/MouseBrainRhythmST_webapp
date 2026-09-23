@@ -492,6 +492,7 @@ function spatial_legend_svg(float $min, float $max, float $gamma): string
     $height = 70;
     $x0 = 170;
     $x1 = $width - 20;
+    $mid = ($x0 + $x1) / 2;
     $stops = array();
     for ($i = 0; $i <= 40; $i++) {
         $u = $i / 40;
@@ -502,6 +503,7 @@ function spatial_legend_svg(float $min, float $max, float $gamma): string
         . '<text x="10" y="38" font-family="Arial, sans-serif" font-size="12">log2(normalized counts)</text>'
         . '<rect x="' . $x0 . '" y="22" width="' . ($x1 - $x0) . '" height="20" fill="url(#grad)" stroke="black"/>'
         . '<text x="' . $x0 . '" y="60" font-family="Arial, sans-serif" font-size="12">' . xml_escape(svg_numeric_label($min)) . '</text>'
+        . '<text x="' . $mid . '" y="60" text-anchor="middle" font-family="Arial, sans-serif" font-size="12">' . xml_escape(svg_numeric_label(($min + $max) / 2)) . '</text>'
         . '<text x="' . $x1 . '" y="60" text-anchor="end" font-family="Arial, sans-serif" font-size="12">' . xml_escape(svg_numeric_label($max)) . '</text>'
         . '</svg>';
 }
@@ -934,7 +936,7 @@ function diurnal_spatial_csv(string $gene): string
 {
     $pdo = open_database('diurnal');
     $resolved = require_diurnal_gene($pdo, $gene);
-    $rows = db_all($pdo, "SELECT c.code AS region, c.label AS region_label, gt.code AS genotype, gt.label AS genotype_label, a.code AS age, a.label AS age_label, sm.mean_value\n"
+    $rows = db_all($pdo, "SELECT c.label AS region_label, gt.code AS genotype, a.code AS age, sm.mean_value\n"
         . "FROM spatial_means sm\n"
         . "JOIN clusters c ON c.cluster_id = sm.cluster_id\n"
         . "JOIN genotypes gt ON gt.genotype_id = sm.genotype_id\n"
@@ -942,18 +944,19 @@ function diurnal_spatial_csv(string $gene): string
         . "WHERE sm.gene_id = :gene_id\n"
         . "ORDER BY gt.sort_order, a.sort_order, c.sort_order", array('gene_id' => (int) $resolved['gene_id']));
 
-    $columns = array('gene', 'region', 'region_label', 'genotype', 'genotype_label', 'age', 'age_label', 'log2_normalized_count');
+    // genotype and age codes and labels are identical (e.g. "APP23"/"APP23",
+    // "7 months"/"7 months"), so only the code is emitted for those; region
+    // codes and labels differ (e.g. "L23" vs "Cortex Layer 2/3"), so the
+    // more readable label is emitted for that one instead.
+    $columns = array('gene', 'region_label', 'genotype', 'age', 'log2_normalized_count');
     $out = fopen('php://temp', 'r+');
     fputcsv($out, $columns, ',', '"', '\\');
     foreach ($rows as $row) {
         fputcsv($out, array(
             $resolved['gene'],
-            $row['region'],
             $row['region_label'],
             $row['genotype'],
-            $row['genotype_label'],
             $row['age'],
-            $row['age_label'],
             (float) $row['mean_value'],
         ), ',', '"', '\\');
     }
