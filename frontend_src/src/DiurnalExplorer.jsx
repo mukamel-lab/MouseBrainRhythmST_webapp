@@ -677,7 +677,10 @@ function RhythmTableThresholdFields({ category, categoryInfo, sources, rhythmSou
           max="0.1"
           step="any"
           value={rhythmThreshold}
-          onChange={(event) => setRhythmThreshold(Number(event.target.value) || DEFAULT_RHYTHMICITY_THRESHOLD)}
+          onChange={(event) => {
+            const next = Number(event.target.value);
+            setRhythmThreshold(Number.isFinite(next) ? next : DEFAULT_RHYTHMICITY_THRESHOLD);
+          }}
         />
       </label>
       {extraField}
