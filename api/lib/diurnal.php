@@ -544,7 +544,10 @@ function spatial_diverging_legend_svg(float $maxAbs, float $gamma, string $negCo
 {
     $width = 500;
     $height = 70;
-    $x0 = 170;
+    // Wider than the sequential legend's x0 (170): "log2 fold change
+    // (APP23 / NTG)" is long enough at font-size 12 to run into the
+    // colorbar there.
+    $x0 = 205;
     $x1 = $width - 20;
     $mid = ($x0 + $x1) / 2;
     $stops = array();
