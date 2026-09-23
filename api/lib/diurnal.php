@@ -835,6 +835,51 @@ function diurnal_spatial_fc_payload(string $gene, float $gamma): array
     );
 }
 
+/**
+ * APP23-vs-NTG Wald-test p-value and BH-adjusted FDR for one gene, cluster,
+ * and age, from the separately-installed non-rhythmic Wald database (the
+ * same sex-marginalized "APP23 vs NTG at <age>" contrast the APP23 vs. NTG
+ * Differential Expression tab uses). Returns null when that database isn't
+ * installed, or the cluster/contrast/gene isn't available there — the
+ * spatial fold-change map and CSV are computed from spatial_means alone and
+ * don't depend on this being present.
+ */
+function diurnal_spatial_fc_significance(string $cluster, string $ageCode, string $gene): ?array
+{
+    static $nrPdo = false; // false = not yet attempted, null = attempted and unavailable
+    if ($nrPdo === false) {
+        try {
+            $candidate = open_database('nonrhythmic');
+            $nrPdo = nr_available($candidate) ? $candidate : null;
+        } catch (Throwable $error) {
+            $nrPdo = null;
+        }
+    }
+    if ($nrPdo === null) return null;
+
+    $contrastCode = trim($ageCode) === '14 months' ? 'genotype_altage_marginal_sex_equal' : 'genotype_refage_marginal_sex_equal';
+    // Each (cluster, age) combo is looked up exactly once per CSV (23 regions
+    // x 2 ages), so there's no request-local reuse to cache — and caching the
+    // full ~14k-gene result set per combo (up to 46 of them) is what was
+    // exhausting PHP's memory limit. nr_compute_wald() already has its own
+    // disk cache for reuse *across* requests; just read one gene and let the
+    // rest be freed when this call returns.
+    try {
+        $model = nr_cluster_model($nrPdo, $cluster);
+        $contrast = nr_resolve_contrast($nrPdo, (int) $model['model_id'], $contrastCode, '');
+        $waldSet = nr_compute_wald($nrPdo, (int) $model['model_id'], $contrast['vector'], nr_hypothesis('zero', 0.0), $contrast['source'] === 'preset');
+    } catch (Throwable $error) {
+        return null;
+    }
+    $upperGene = strtoupper($gene);
+    foreach ($waldSet['results'] as $result) {
+        if (strtoupper((string) $result['gene']) === $upperGene) {
+            return array('pvalue' => (float) $result['pvalue'], 'fdr' => (float) $result['padj']);
+        }
+    }
+    return null;
+}
+
 function diurnal_spatial_fc_csv(string $gene): string
 {
     $pdo = open_database('diurnal');
@@ -851,16 +896,14 @@ function diurnal_spatial_fc_csv(string $gene): string
 
     $meansByAgeGenotypeRegion = array();
     $regionLabels = array();
-    $ageLabels = array();
     foreach ($rows as $row) {
         $region = (string) $row['region'];
         $age = (string) $row['age'];
         $meansByAgeGenotypeRegion[$age][(string) $row['genotype']][$region] = (float) $row['mean_value'];
         $regionLabels[$region] = (string) $row['region_label'];
-        $ageLabels[$age] = (string) $row['age_label'];
     }
 
-    $columns = array('gene', 'region', 'region_label', 'age', 'age_label', 'app23_log2_normalized_count', 'ntg_log2_normalized_count', 'log2_fold_change');
+    $columns = array('gene', 'region_label', 'age', 'app23_log2_normalized_count', 'ntg_log2_normalized_count', 'log2_fold_change', 'pvalue', 'fdr');
     $out = fopen('php://temp', 'r+');
     fputcsv($out, $columns, ',', '"', '\\');
     foreach ($meansByAgeGenotypeRegion as $age => $byGenotype) {
@@ -868,15 +911,16 @@ function diurnal_spatial_fc_csv(string $gene): string
         $ntgValues = $byGenotype[$ntg] ?? array();
         $regions = array_intersect_key($appValues, $ntgValues);
         foreach ($regions as $region => $appValue) {
+            $significance = diurnal_spatial_fc_significance($region, $age, $resolved['gene']);
             fputcsv($out, array(
                 $resolved['gene'],
-                $region,
                 $regionLabels[$region] ?? $region,
                 $age,
-                $ageLabels[$age] ?? $age,
                 $appValue,
                 $ntgValues[$region],
                 $appValue - $ntgValues[$region],
+                $significance['pvalue'] ?? '',
+                $significance['fdr'] ?? '',
             ), ',', '"', '\\');
         }
     }

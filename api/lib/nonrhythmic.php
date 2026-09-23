@@ -492,7 +492,9 @@ function nr_cache_file(PDO $pdo, int $modelId, array $vector, array $hypothesis)
     $signature = array(
         'version' => NR_CACHE_VERSION,
         'database_mtime' => @filemtime($dbPath),
-        'database_ctime' => @filectime($dbPath),
+        // Deliberately excludes ctime (inode change time): unlike mtime, it can
+        // shift on read-only access on some filesystems, which made this cache
+        // key never match its own previous value between requests.
         'database_inode' => @fileinode($dbPath),
         'database_size' => @filesize($dbPath),
         'database_created_at' => (string) db_scalar($pdo, "SELECT value FROM nr_schema_info WHERE key = 'created_at' LIMIT 1"),
