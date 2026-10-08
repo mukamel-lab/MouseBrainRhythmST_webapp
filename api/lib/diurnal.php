@@ -488,23 +488,34 @@ function spatial_colored_svg(array $valuesByCluster, float $min, float $max, flo
 
 function spatial_legend_svg(float $min, float $max, float $gamma): string
 {
-    $width = 500;
-    $height = 70;
-    $x0 = 170;
-    $x1 = $width - 20;
-    $mid = ($x0 + $x1) / 2;
     $stops = array();
     for ($i = 0; $i <= 40; $i++) {
         $u = $i / 40;
         $stops[] = '<stop offset="' . round(100 * $u, 2) . '%" stop-color="' . interpolate_hex('#d3d3d3', '#0000ff', pow($u, $gamma)) . '"/>';
     }
-    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 70">'
-        . '<defs><linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">' . implode('', $stops) . '</linearGradient></defs>'
-        . '<text x="10" y="38" font-family="Arial, sans-serif" font-size="12">log2(normalized counts)</text>'
-        . '<rect x="' . $x0 . '" y="22" width="' . ($x1 - $x0) . '" height="20" fill="url(#grad)" stroke="black"/>'
-        . '<text x="' . $x0 . '" y="60" font-family="Arial, sans-serif" font-size="12">' . xml_escape(svg_numeric_label($min)) . '</text>'
-        . '<text x="' . $mid . '" y="60" text-anchor="middle" font-family="Arial, sans-serif" font-size="12">' . xml_escape(svg_numeric_label(($min + $max) / 2)) . '</text>'
-        . '<text x="' . $x1 . '" y="60" text-anchor="end" font-family="Arial, sans-serif" font-size="12">' . xml_escape(svg_numeric_label($max)) . '</text>'
+    return spatial_legend_frame(implode('', $stops), 'log2(normalized counts)', svg_numeric_label($min), svg_numeric_label(($min + $max) / 2), svg_numeric_label($max));
+}
+
+/**
+ * Compact colorbar legend: caption above a small bar with min / mid / max tick
+ * labels beneath. The SVG is drawn at its CSS pixel size (see .spatial-legend
+ * in styles.css), so the 14px text matches the page's 14.4px control labels
+ * instead of scaling with the card width.
+ */
+function spatial_legend_frame(string $stops, string $caption, string $minLabel, string $midLabel, string $maxLabel): string
+{
+    $width = 260;
+    $x0 = 8;
+    $x1 = $width - 8;
+    $mid = ($x0 + $x1) / 2;
+    $font = 'font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#17212b"';
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="' . $width . '" height="64" viewBox="0 0 ' . $width . ' 64">'
+        . '<defs><linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">' . $stops . '</linearGradient></defs>'
+        . '<text x="' . $mid . '" y="13" text-anchor="middle" ' . $font . '>' . xml_escape($caption) . '</text>'
+        . '<rect x="' . $x0 . '" y="22" width="' . ($x1 - $x0) . '" height="12" fill="url(#grad)" stroke="#555" stroke-width="1"/>'
+        . '<text x="' . $x0 . '" y="55" ' . $font . '>' . xml_escape($minLabel) . '</text>'
+        . '<text x="' . $mid . '" y="55" text-anchor="middle" ' . $font . '>' . xml_escape($midLabel) . '</text>'
+        . '<text x="' . $x1 . '" y="55" text-anchor="end" ' . $font . '>' . xml_escape($maxLabel) . '</text>'
         . '</svg>';
 }
 
@@ -544,14 +555,6 @@ function spatial_diverging_colored_svg(array $valuesByCluster, float $maxAbs, fl
 
 function spatial_diverging_legend_svg(float $maxAbs, float $gamma, string $negColor, string $posColor, string $label): string
 {
-    $width = 500;
-    $height = 70;
-    // Wider than the sequential legend's x0 (170): "log2 fold change
-    // (APP23 / NTG)" is long enough at font-size 12 to run into the
-    // colorbar there.
-    $x0 = 205;
-    $x1 = $width - 20;
-    $mid = ($x0 + $x1) / 2;
     $stops = array();
     for ($i = 0; $i <= 40; $i++) {
         $u = $i / 40;
@@ -560,14 +563,7 @@ function spatial_diverging_legend_svg(float $maxAbs, float $gamma, string $negCo
         $color = $t < 0 ? interpolate_hex('#F2F2F2', $negColor, $magnitude) : interpolate_hex('#F2F2F2', $posColor, $magnitude);
         $stops[] = '<stop offset="' . round(100 * $u, 2) . '%" stop-color="' . $color . '"/>';
     }
-    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 70">'
-        . '<defs><linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">' . implode('', $stops) . '</linearGradient></defs>'
-        . '<text x="10" y="38" font-family="Arial, sans-serif" font-size="12">' . xml_escape($label) . '</text>'
-        . '<rect x="' . $x0 . '" y="22" width="' . ($x1 - $x0) . '" height="20" fill="url(#grad)" stroke="black"/>'
-        . '<text x="' . $x0 . '" y="60" font-family="Arial, sans-serif" font-size="12">' . xml_escape(svg_numeric_label(-$maxAbs)) . '</text>'
-        . '<text x="' . $mid . '" y="60" text-anchor="middle" font-family="Arial, sans-serif" font-size="12">0</text>'
-        . '<text x="' . $x1 . '" y="60" text-anchor="end" font-family="Arial, sans-serif" font-size="12">' . xml_escape(svg_numeric_label($maxAbs)) . '</text>'
-        . '</svg>';
+    return spatial_legend_frame(implode('', $stops), $label, svg_numeric_label(-$maxAbs), '0', svg_numeric_label($maxAbs));
 }
 
 function spatial_reference_label_overlay(): string
