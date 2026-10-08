@@ -7,8 +7,8 @@
     { "text": "Ventral",    "x": 101, "y": 120 }
   ],
   "regions": [
-    { "text": "Meninges",       "x": 40,  "y": 7,   "line": [[40, 9], [45, 17]] },
-    { "text": "Cortex",         "x": 33,  "y": 32,  "line": [[38, 33], [49, 29]] },
+    { "text": "Meninges",       "x": 40,  "y": 7,   "line": [[40, 9], [41, 16.4]] },
+    { "text": "Cortex",         "x": 33,  "y": 32  },
     { "text": "L2/3–L6b",  "x": 33,  "y": 36,  "size": 2.5 },
     { "text": "L6b",            "x": 36,  "y": 80,  "size": 2.3 },
     { "text": "Caudoputamen",   "x": 58,  "y": 64 },
