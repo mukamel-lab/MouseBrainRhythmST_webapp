@@ -96,6 +96,17 @@ function app_config(): array
         $config[$key] = rtrim($value, DIRECTORY_SEPARATOR);
     }
 
+    // The web server may run as a different user than the one that owns the
+    // app directory (e.g. www-data vs. the deploying user), in which case the
+    // configured cache cannot be written and every cached computation reruns
+    // on each request. Fall back to a per-user directory in the system temp dir.
+    $cacheDir = $config['cache_dir'];
+    $cacheUsable = is_dir($cacheDir) ? is_writable($cacheDir) : (@mkdir($cacheDir, 0775, true) || is_dir($cacheDir));
+    if (!$cacheUsable) {
+        $uid = function_exists('posix_geteuid') ? (string) posix_geteuid() : get_current_user();
+        $config['cache_dir'] = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'brainrhythmstt-cache-' . $uid;
+    }
+
     return $config;
 }
 
